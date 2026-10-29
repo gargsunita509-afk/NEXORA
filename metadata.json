@@ -1,0 +1,6 @@
+{
+  "name": "CLASS OS — THE ABHINAV SCHOOL",
+  "description": "Futuristic smart-board classroom operating system for Class 11th at The Abhinav School, led by Alka Mam. Includes real-time timetable, digital sketchboard, persistent daily diary, quiz arena, scientific calculator, activities, and cinematic student showcase.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

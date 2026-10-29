@@ -1,0 +1,26 @@
+[
+  {
+    "id": "staff-dev-1359a33a9963",
+    "username": "nexora.7",
+    "displayName": "Devloper",
+    "role": "developer",
+    "title": "NEXORA Lead Developer",
+    "passwordHash": "scrypt:818a59eb083468ef39f323415114f5ca:9cf7c24678f64940222d89c94f348e68cdb04e097a2ece0406f70536870ed56e8c8b024d4e4a04d599a7055e5974ca995ace94f1b6e4472985a0b83390a7b3be",
+    "active": true,
+    "createdAt": 1792918991053,
+    "updatedAt": 1792918991053,
+    "createdBy": "initial_bootstrap"
+  },
+  {
+    "id": "staff-tch-4d948c6f328c",
+    "username": "alka.mam",
+    "displayName": "Alka Mam (In-Charge)",
+    "role": "teacher_in_charge",
+    "title": "Class 11th In-Charge",
+    "passwordHash": "scrypt:2bd1f31ecc5d3e241a55c01a88e9ca52:3d9aaa0428a8ec02502e82a01fa7c44d607890c2377a14f61d47899c3871183035410de57f1108c270fcd6ba13535a7f30e8c9f38bc558b026012b791abbde6a",
+    "active": true,
+    "createdAt": 1792918991053,
+    "updatedAt": 1792918991053,
+    "createdBy": "nexora.7"
+  }
+]

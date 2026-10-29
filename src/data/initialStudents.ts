@@ -1,0 +1,33 @@
+import type { Student } from '../types/index.ts';
+
+export const INITIAL_STUDENTS: Student[] = [
+  { id: 'std-1', name: 'Keshav', stream: 'HUMANITIES', gender: 'boy' },
+  { id: 'std-2', name: 'Arpit', stream: 'PCM', gender: 'boy' },
+  { id: 'std-3', name: 'Lakshit / Shivam', stream: 'PCB', gender: 'boy' },
+  { id: 'std-4', name: 'Hardik', stream: 'PCM', gender: 'boy' },
+  { id: 'std-5', name: 'Khushant', stream: 'PCM', gender: 'boy' },
+  { id: 'std-6', name: 'Dikshit', stream: 'PCB', gender: 'boy' },
+  { id: 'std-7', name: 'Vansh', stream: 'PCM', gender: 'boy' },
+  { id: 'std-8', name: 'Gauransh', stream: 'PCM', gender: 'boy' },
+  { id: 'std-9', name: 'Geetika', stream: 'PCB', gender: 'girl' },
+  { id: 'std-10', name: 'Harshita', stream: 'PCM', gender: 'girl' },
+  { id: 'std-11', name: 'Diya', stream: 'HUMANITIES', gender: 'girl' },
+  { id: 'std-12', name: 'Riya', stream: 'COMMERCE', gender: 'girl' },
+  { id: 'std-13', name: 'Vanshika', stream: 'COMMERCE', gender: 'girl' },
+  { id: 'std-14', name: 'Harsh', stream: 'COMMERCE', gender: 'boy' },
+  { id: 'std-15', name: 'Anmol', stream: 'HUMANITIES', gender: 'boy' },
+  { id: 'std-16', name: 'Raghav', stream: 'HUMANITIES', gender: 'boy' },
+  { id: 'std-17', name: 'Devansh', stream: 'HUMANITIES', gender: 'boy' },
+  { id: 'std-18', name: 'Sandhya', stream: 'COMMERCE', gender: 'girl' },
+  { id: 'std-19', name: 'Aashish', stream: 'HUMANITIES', gender: 'boy' },
+  { id: 'std-20', name: 'Tamanna', stream: 'COMMERCE', gender: 'girl' },
+  { id: 'std-21', name: 'Anshika', stream: 'HUMANITIES', gender: 'girl' },
+];
+
+export const CLASS_METADATA = {
+  school: 'THE ABHINAV SCHOOL',
+  class: 'CLASS 11TH',
+  classInCharge: 'Diksha Mam',
+  academicYear: '2026 - 2027',
+  motto: 'Per Scientiam Ad Astra — Knowledge to the Stars',
+};

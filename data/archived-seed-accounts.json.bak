@@ -1,0 +1,41 @@
+[
+  {
+    "id": "staff-dev-default-01",
+    "username": "nexora.dev",
+    "displayName": "NEXORA System Developer",
+    "role": "developer",
+    "title": "NEXORA Lead Developer",
+    "passwordHash": "scrypt:728268907e2cf90f56d6e98907d4df18:e6f3addedcf5607813a377a8e46cbe09154433b358a7ed980f8838d40ca6b7413fff7fd160539da59dd85bf8ff0bb7fc0697919806d6f9b7358d62389ca2245f",
+    "active": false,
+    "createdAt": 1792900000000,
+    "updatedAt": 1792900000000,
+    "createdBy": "system_seed_archived",
+    "archivedReason": "Unauthorized default seed account removed per security fix"
+  },
+  {
+    "id": "staff-dev-e70ef280bedf",
+    "username": "nexora.7",
+    "displayName": "NEXORA System Developer",
+    "role": "developer",
+    "title": "NEXORA Lead Developer",
+    "passwordHash": "scrypt:728268907e2cf90f56d6e98907d4df18:e6f3addedcf5607813a377a8e46cbe09154433b358a7ed980f8838d40ca6b7413fff7fd160539da59dd85bf8ff0bb7fc0697919806d6f9b7358d62389ca2245f",
+    "active": false,
+    "createdAt": 1792900000000,
+    "updatedAt": 1792900000000,
+    "createdBy": "system_seed_archived",
+    "archivedReason": "Unauthorized default seed account removed per security fix"
+  },
+  {
+    "id": "staff-tch-0953bff6b144",
+    "username": "alka.mam",
+    "displayName": "Alka Mam",
+    "role": "teacher_in_charge",
+    "title": "Class 11th In-Charge",
+    "passwordHash": "scrypt:382b8a2e0aae2ab03428c1b1722b1d52:f3a1de4c1bf7915ca1e1de9f2015b6e080890d238526e28202623cdfe1c0edbb4246888bf435d0313fa6fe9273ad243556e39150f391b57b349fdc0492f4f7d5",
+    "active": false,
+    "createdAt": 1792900000000,
+    "updatedAt": 1792900000000,
+    "createdBy": "system_seed_archived",
+    "archivedReason": "Unauthorized default seed account removed per security fix"
+  }
+]

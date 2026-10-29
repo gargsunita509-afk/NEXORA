@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+    <script>
+      (function() {
+        if (typeof window === 'undefined') return;
+        // 1. Suppress console error noise for benign Vite WebSocket HMR closure in proxy environments
+        var origConsoleError = console.error;
+        console.error = function() {
+          var args = Array.prototype.slice.call(arguments);
+          var msg = args.map(function(a) {
+            return (a && (a.message || a.stack)) ? (a.message + ' ' + (a.stack || '')) : String(a);
+          }).join(' ');
+          if (
+            msg.indexOf('WebSocket closed without opened') !== -1 ||
+            msg.indexOf('[vite] server connection lost') !== -1 ||
+            (msg.indexOf('[vite]') !== -1 && msg.indexOf('WebSocket') !== -1)
+          ) {
+            return;
+          }
+          origConsoleError.apply(console, args);
+        };
+
+        // 2. Prevent window unhandled error popups for @vite/client WebSocket events
+        window.addEventListener('error', function(e) {
+          var isViteWs = (e && e.message && e.message.indexOf('WebSocket closed without opened') !== -1) ||
+                         (e && e.filename && e.filename.indexOf('@vite/client') !== -1);
+          if (isViteWs) {
+            if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+            if (e.preventDefault) e.preventDefault();
+            return true;
+          }
+        }, true);
+
+        // 3. Gracefully handle vite-hmr WebSocket client requests
+        var NativeWS = window.WebSocket;
+        if (NativeWS) {
+          window.WebSocket = function(url, protocols) {
+            var isViteHmr = (Array.isArray(protocols) ? protocols.indexOf('vite-hmr') !== -1 : protocols === 'vite-hmr') ||
+                            (typeof url === 'string' && (url.indexOf('vite-hmr') !== -1 || url.indexOf('/@vite/client') !== -1));
+            if (isViteHmr) {
+              var target = new EventTarget();
+              var mockSocket = {
+                readyState: 1, // OPEN
+                bufferedAmount: 0,
+                extensions: '',
+                protocol: 'vite-hmr',
+                url: String(url),
+                binaryType: 'blob',
+                send: function() {},
+                close: function() {},
+                addEventListener: target.addEventListener.bind(target),
+                removeEventListener: target.removeEventListener.bind(target),
+                dispatchEvent: target.dispatchEvent.bind(target),
+                onopen: null,
+                onmessage: null,
+                onerror: null,
+                onclose: null
+              };
+              try {
+                Object.setPrototypeOf(mockSocket, NativeWS.prototype);
+              } catch (_) {}
+              setTimeout(function() {
+                var openEvt = new Event('open');
+                if (typeof mockSocket.onopen === 'function') {
+                  mockSocket.onopen(openEvt);
+                }
+                mockSocket.dispatchEvent(openEvt);
+              }, 0);
+              return mockSocket;
+            }
+            return new NativeWS(url, protocols);
+          };
+          window.WebSocket.prototype = NativeWS.prototype;
+          window.WebSocket.CONNECTING = NativeWS.CONNECTING;
+          window.WebSocket.OPEN = NativeWS.OPEN;
+          window.WebSocket.CLOSING = NativeWS.CLOSING;
+          window.WebSocket.CLOSED = NativeWS.CLOSED;
+        }
+      })();
+    </script>
+    <title>CLASS OS — THE ABHINAV SCHOOL</title>
+    <meta name="description" content="Futuristic smart-board classroom operating system for Class 11th at The Abhinav School, led by Alka Mam. Includes real-time timetable, digital sketchboard, persistent daily diary, quiz arena, scientific calculator, activities, and cinematic student showcase." />
+    <meta property="og:title" content="CLASS OS — THE ABHINAV SCHOOL" />
+    <meta property="og:description" content="Futuristic smart-board classroom operating system for Class 11th at The Abhinav School, led by Alka Mam. Includes real-time timetable, digital sketchboard, persistent daily diary, quiz arena, scientific calculator, activities, and cinematic student showcase." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#060b19" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="NEXORA" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-[#050814] text-slate-100 antialiased selection:bg-cyan-500 selection:text-black min-h-screen overflow-x-hidden">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

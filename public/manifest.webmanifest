@@ -1,0 +1,62 @@
+{
+  "id": "/",
+  "name": "NEXORA — Class 11 Command Center",
+  "short_name": "NEXORA",
+  "description": "Futuristic smart-board classroom operating system for Class 11th, featuring real-time timetable matrix, digital whiteboard, persistent diary, quiz arena, and scientific tools.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#060b19",
+  "background_color": "#050814",
+  "categories": ["education", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Timetable",
+      "short_name": "Timetable",
+      "description": "View Class 11 Timetable matrix",
+      "url": "/?module=timetable",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Sketchboard",
+      "short_name": "Board",
+      "description": "Open Smart Board Whiteboard",
+      "url": "/?module=sketchboard",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Quiz Arena",
+      "short_name": "Quiz",
+      "description": "Launch Class Quiz Arena",
+      "url": "/?module=quiz",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGradM" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#040816"/>
+      <stop offset="50%" stopColor="#081432"/>
+      <stop offset="100%" stopColor="#0a1a3f"/>
+    </linearGradient>
+    <linearGradient id="nexGradM" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#00f0ff"/>
+      <stop offset="45%" stopColor="#0088ff"/>
+      <stop offset="100%" stopColor="#8b5cf6"/>
+    </linearGradient>
+    <radialGradient id="reactorCoreM" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stopColor="#ffffff" stop-opacity="1"/>
+      <stop offset="30%" stopColor="#00f0ff" stop-opacity="0.8"/>
+      <stop offset="70%" stopColor="#0077fe" stop-opacity="0.2"/>
+      <stop offset="100%" stopColor="#0044aa" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glowM" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Full-bleed background for maskable cropping -->
+  <rect width="512" height="512" fill="url(#bgGradM)"/>
+
+  <!-- Centered within 75% safe area (scale 2.7) -->
+  <g transform="translate(121, 121) scale(2.7)" filter="url(#glowM)">
+    <polygon points="50,6 88,28 88,72 50,94 12,72 12,28" stroke="url(#nexGradM)" stroke-width="4" stroke-linejoin="round" fill="rgba(6, 22, 54, 0.75)"/>
+    <circle cx="50" cy="50" r="30" stroke="rgba(0, 240, 255, 0.4)" stroke-width="1.8" stroke-dasharray="5 3"/>
+    <path d="M34,68 L34,32 L44,32 L60,56 L60,32 L68,32 L68,68 L58,68 L42,44 L42,68 Z" fill="url(#nexGradM)"/>
+    <circle cx="50" cy="50" r="7" fill="url(#reactorCoreM)"/>
+    <circle cx="50" cy="50" r="3" fill="#ffffff"/>
+  </g>
+</svg>
