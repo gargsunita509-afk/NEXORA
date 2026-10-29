@@ -7,8 +7,8 @@ import { installApkApiBridge, sha256Hex, apkAwareFetch as fetch } from './apkApi
 
 installApkApiBridge();
 
-export const APP_CURRENT_VERSION = '1.7.0';
-export const APP_CURRENT_VERSION_CODE = 7;
+export const APP_CURRENT_VERSION = '1.8.0';
+export const APP_CURRENT_VERSION_CODE = 8;
 export const APP_PACKAGE_NAME = 'com.theabhinavschool.nexora';
 
 export const DEFAULT_REMOTE_RELEASE_BASE =

@@ -31,7 +31,11 @@ import {
   ensureQuestionStableOptionIds,
   shuffleQuestionOptionsWithStableId,
 } from '../../utils/mcqValidator';
-import { downloadQuestionPaperPdf } from '../../utils/pdfGenerator';
+import {
+  downloadQuestionPaperPdf,
+  openSavedAndroidPdf,
+  isAndroidApkEnvironment,
+} from '../../utils/pdfGenerator';
 import { QuestionPaperPreviewModal } from './QuestionPaperPreviewModal';
 import { UniversalBackButton } from '../UniversalBackButton';
 
@@ -60,7 +64,12 @@ export const TeacherQuizReviewModal: React.FC<TeacherQuizReviewModalProps> = ({
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState<boolean>(false);
   const [isPaperPreviewOpen, setIsPaperPreviewOpen] = useState<boolean>(false);
-  const [notice, setNotice] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [notice, setNotice] = useState<{
+    message: string;
+    type: 'success' | 'error' | 'info';
+    savedUri?: string;
+    filename?: string;
+  } | null>(null);
 
   useEffect(() => {
     if (quiz) {
@@ -407,9 +416,12 @@ export const TeacherQuizReviewModal: React.FC<TeacherQuizReviewModalProps> = ({
                   try {
                     const res = await downloadQuestionPaperPdf(editedQuiz, { includeAnswerKey: false });
                     audioFX.playSuccess();
+                    const locLabel = res.storageLocation || `Downloads/${res.filename}`;
                     setNotice({
-                      message: `Question Paper PDF saved (${res.filename} • ${res.pageCount} ${res.pageCount === 1 ? 'Page' : 'Pages'})`,
+                      message: `PDF saved to Downloads (${locLabel} • ${res.pageCount} ${res.pageCount === 1 ? 'Page' : 'Pages'})`,
                       type: 'success',
+                      savedUri: res.savedUri,
+                      filename: res.filename,
                     });
                   } catch (err: any) {
                     audioFX.playError();
@@ -478,7 +490,7 @@ export const TeacherQuizReviewModal: React.FC<TeacherQuizReviewModalProps> = ({
           {/* Notice Alert */}
           {notice && (
             <div
-              className={`px-6 py-2.5 text-xs font-mono-code flex items-center justify-between border-b shrink-0 ${
+              className={`px-6 py-2.5 text-xs font-mono-code flex items-center justify-between gap-3 border-b shrink-0 ${
                 notice.type === 'success'
                   ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300'
                   : notice.type === 'error'
@@ -487,9 +499,20 @@ export const TeacherQuizReviewModal: React.FC<TeacherQuizReviewModalProps> = ({
               }`}
             >
               <span>{notice.message}</span>
-              <button onClick={() => setNotice(null)} className="text-slate-400 hover:text-white">
-                <X className="w-3.5 h-3.5" />
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                {notice.type === 'success' && (notice.savedUri || ( notice.filename && isAndroidApkEnvironment() )) && (
+                  <button
+                    type="button"
+                    onClick={() => openSavedAndroidPdf(notice.savedUri, notice.filename)}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/50 text-emerald-200 hover:text-white font-hud font-bold text-[11px] cursor-pointer"
+                  >
+                    OPEN PDF
+                  </button>
+                )}
+                <button onClick={() => setNotice(null)} className="text-slate-400 hover:text-white">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           )}
 

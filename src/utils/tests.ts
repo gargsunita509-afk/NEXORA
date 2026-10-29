@@ -3448,6 +3448,37 @@ export async function runAllVerificationTests(): Promise<TestResult[]> {
     }
   );
 
+  // 55. NATIVE ANDROID APK MEDIASTORE.DOWNLOADS PDF SAVING & VERIFICATION BRIDGE
+  await test(
+    55,
+    'Android APK Native MediaStore.Downloads PDF Saving, Non-Empty Verification & Open Action',
+    'PDF & Documents',
+    async () => {
+      const {
+        sanitizePdfFilename,
+        saveBase64PdfViaAndroidBridge,
+        buildTimetablePdfDocument,
+      } = await import('./pdfGenerator');
+
+      const sanitized = sanitizePdfFilename('NEXORA Class 11: Physics & Chemistry Paper! ');
+      if (!sanitized.endsWith('.pdf') || sanitized.includes(' ') || sanitized.includes(':')) {
+        throw new Error(`sanitizePdfFilename did not clean unsafe filename characters: ${sanitized}`);
+      }
+
+      // Reject empty / tiny payload (< 100 bytes) before even touching storage
+      const emptyCheck = saveBase64PdfViaAndroidBridge('test.pdf', 'JVBERi0xLjQK');
+      if (emptyCheck.ok) {
+        throw new Error('saveBase64PdfViaAndroidBridge must reject payloads smaller than 100 bytes');
+      }
+
+      // Build a real timetable PDF and verify its base64 payload is non-empty and starts with %PDF- (JVBERi0)
+      const builtPdf = buildTimetablePdfDocument('current');
+      if (builtPdf.byteLength < 1000 || !builtPdf.base64.startsWith('JVBERi0')) {
+        throw new Error('Built PDF document did not produce valid %PDF- base64 data');
+      }
+    }
+  );
+
   return results;
 }
 

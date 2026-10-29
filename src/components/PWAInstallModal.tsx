@@ -18,6 +18,7 @@ import {
 import { NexoraLogo } from './NexoraLogo';
 import { audioFX } from '../services/audio';
 import { useAppUpdate } from '../hooks/useAppUpdate';
+import { isNativeAndroidApp } from '../services/updateService';
 
 interface PWAInstallModalProps {
   isOpen: boolean;
@@ -62,6 +63,7 @@ export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({
   const [copiedSha, setCopiedSha] = useState<boolean>(false);
   const [hasManuallyChecked, setHasManuallyChecked] = useState<boolean>(false);
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+  const runningInNativeApk = isNativeAndroidApp();
 
   // Dynamically resolve portal target: attach to active fullscreen element if present, otherwise document.body
   useEffect(() => {
@@ -323,26 +325,42 @@ export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({
                   </div>
                 )}
 
-                {/* Action Button */}
-                <button
-                  onClick={handleDownloadAPK}
-                  disabled={isDownloading}
-                  className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:brightness-110 active:scale-[0.98] text-white font-hud font-bold text-sm tracking-wider uppercase flex items-center justify-center gap-2.5 shadow-[0_0_25px_rgba(0,240,255,0.4)] disabled:opacity-50 transition cursor-pointer"
-                >
-                  {isDownloading ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>DOWNLOADING ({downloadProgress}%)...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-4 h-4" />
-                      <span>
-                        DOWNLOAD ANDROID APK v{releaseInfo?.version || latestVersion} ({releaseInfo?.apkSize || '605K'})
-                      </span>
-                    </>
-                  )}
-                </button>
+                {/* Action Button: If already running inside installed Android APK with no update, show Installed status */}
+                {runningInNativeApk && !updateAvailable ? (
+                  <div className="p-3.5 rounded-xl bg-emerald-950/50 border border-emerald-500/40 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                      <div>
+                        <div className="font-hud font-bold text-xs sm:text-sm text-emerald-300 uppercase">
+                          Native Android App Installed (v{currentVersion})
+                        </div>
+                        <div className="text-[11px] font-mono-code text-slate-300">
+                          You are running the latest installed NEXORA APK.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleDownloadAPK}
+                    disabled={isDownloading}
+                    className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:brightness-110 active:scale-[0.98] text-white font-hud font-bold text-sm tracking-wider uppercase flex items-center justify-center gap-2.5 shadow-[0_0_25px_rgba(0,240,255,0.4)] disabled:opacity-50 transition cursor-pointer"
+                  >
+                    {isDownloading ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>DOWNLOADING ({downloadProgress}%)...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4" />
+                        <span>
+                          {runningInNativeApk ? 'DOWNLOAD UPDATE APK' : 'DOWNLOAD ANDROID APK'} v{releaseInfo?.version || latestVersion} ({releaseInfo?.apkSize || '820K'})
+                        </span>
+                      </>
+                    )}
+                  </button>
+                )}
 
                 {/* Metadata & Verification */}
                 <div className="pt-2 border-t border-cyan-500/15 flex flex-wrap items-center justify-between gap-2 text-[10.5px] font-mono-code text-slate-400">

@@ -4,6 +4,7 @@ import { usePWAInstall } from '../hooks/usePWAInstall';
 import { useAppUpdate } from '../hooks/useAppUpdate';
 import { PWAInstallModal } from './PWAInstallModal';
 import { audioFX } from '../services/audio';
+import { isNativeAndroidApp } from '../services/updateService';
 
 export const PWAInstallButton: React.FC = () => {
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
@@ -11,10 +12,12 @@ export const PWAInstallButton: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
 
   const hasPendingUpdate = updateAvailable && !isDismissed;
+  const isRunningInInstalledApk = isNativeAndroidApp();
+  const effectiveIsInstalled = isInstalled || isRunningInInstalledApk;
 
   const handleClick = async () => {
     audioFX.playClick();
-    // Always open modal to allow Android APK download, Smart Board selection, or update
+    // Always open modal to allow Android APK update check, Smart Board selection, or installation
     setIsModalOpen(true);
   };
 
@@ -25,8 +28,8 @@ export const PWAInstallButton: React.FC = () => {
         title={
           hasPendingUpdate
             ? 'A new version of NEXORA is ready! Click to update.'
-            : isInstalled
-            ? 'NEXORA is installed (Click for APK & Smart Board tools)'
+            : effectiveIsInstalled
+            ? 'NEXORA is installed on this device (Click for version status & Smart Board tools)'
             : isAndroid
             ? 'Download NEXORA Android APK'
             : 'Install NEXORA on Smart Board, Laptop, or Tablet'
@@ -34,7 +37,7 @@ export const PWAInstallButton: React.FC = () => {
         className={`p-2 sm:px-3 sm:py-1.5 rounded-lg border text-xs font-hud font-semibold flex items-center gap-1.5 transition cursor-pointer ${
           hasPendingUpdate
             ? 'bg-gradient-to-r from-purple-950/80 via-blue-950/80 to-cyan-950/80 border-cyan-400 text-cyan-200 shadow-[0_0_15px_rgba(0,240,255,0.4)] animate-pulse'
-            : isInstalled
+            : effectiveIsInstalled
             ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300 hover:bg-emerald-900/40'
             : isAndroid
             ? 'bg-cyan-950/60 border-cyan-400/60 text-cyan-300 hover:border-cyan-300 hover:text-white shadow-[0_0_12px_rgba(0,240,255,0.25)]'
@@ -49,7 +52,7 @@ export const PWAInstallButton: React.FC = () => {
             <Sparkles className="w-3.5 h-3.5 text-cyan-300 animate-spin" />
             <span className="font-hud font-bold text-white tracking-wide">UPDATE</span>
           </>
-        ) : isInstalled ? (
+        ) : effectiveIsInstalled ? (
           <>
             <Check className="w-3.5 h-3.5 text-emerald-400" />
             <span className="hidden lg:inline text-[11px] font-mono-code">INSTALLED</span>
@@ -72,7 +75,7 @@ export const PWAInstallButton: React.FC = () => {
         onClose={() => setIsModalOpen(false)}
         canDirectInstall={isInstallable}
         onDirectInstall={install}
-        isInstalled={isInstalled}
+        isInstalled={effectiveIsInstalled}
         isIOS={isIOS}
       />
     </>

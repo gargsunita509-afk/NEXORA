@@ -28,6 +28,10 @@ import {
 import { DiaryEntry, DiaryAttachment, StreamType, StaffUser } from '../../types';
 import { staffContentService } from '../../services/staffContentService';
 import { formatReadableDate, type DiaryCycleInfo } from '../../utils/diaryHelper';
+import {
+  isAndroidApkEnvironment,
+  saveBase64PdfViaAndroidBridge,
+} from '../../utils/pdfGenerator';
 
 const SUBJECT_CATALOG = [
   { id: 'eng', name: 'English' },
@@ -311,6 +315,21 @@ export const DiaryModule: React.FC<DiaryModuleProps> = ({
     if (inline && (att.mimeType.startsWith('image/') || att.mimeType === 'application/pdf')) {
       setPreviewAttachment({ attachment: att, url: res.url });
     } else {
+      if (
+        att.mimeType === 'application/pdf' &&
+        isAndroidApkEnvironment() &&
+        res.url.startsWith('data:application/pdf;base64,')
+      ) {
+        const nativeSave = saveBase64PdfViaAndroidBridge(att.originalName, res.url);
+        if (nativeSave.invoked) {
+          if (nativeSave.ok) {
+            setStatusBanner(`PDF saved to Downloads (${nativeSave.displayPath || att.originalName}).`);
+          } else {
+            setErrorMsg(`Could not save PDF to Downloads: ${nativeSave.error || 'Storage error.'}`);
+          }
+          return;
+        }
+      }
       const link = document.createElement('a');
       link.href = res.url;
       link.download = att.originalName;

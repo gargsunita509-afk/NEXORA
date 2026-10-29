@@ -10,17 +10,19 @@ import path from 'path';
 import zlib from 'zlib';
 import crypto from 'crypto';
 import { execSync } from 'child_process';
+import { buildNexoraClassesDex } from './compile-nexora-dex.mjs';
 
-const VERSION_NAME = process.argv[2] || '1.7.0';
-const VERSION_CODE = parseInt(process.argv[3] || '7', 10);
+const VERSION_NAME = process.argv[2] || '1.8.0';
+const VERSION_CODE = parseInt(process.argv[3] || '8', 10);
 const RELEASE_NOTES =
   process.argv[4] ||
-  `NEXORA v${VERSION_NAME} Production Release: Default CURRENT TIMETABLE (Class In-Charge: Diksha Mam) with instant OLD TIMETABLE switcher, 1-page A4 landscape PDF & Print export, Android APK native PDF download bridge, and Node.js production server ESM startup fix.`;
+  `NEXORA v${VERSION_NAME} Production Release: Native Android MediaStore.Downloads PDF saving with verified file creation & direct Open PDF support, Gemini CBSE Chapter & Syllabus-Locked Question Paper Engine, and Default CURRENT TIMETABLE with instant OLD TIMETABLE switcher.`;
 
 const ROOT = process.cwd();
-const BASE_APK_PATH = fs.existsSync(path.resolve(ROOT, 'public/downloads/nexora-v1.2.0.apk'))
-  ? path.resolve(ROOT, 'public/downloads/nexora-v1.2.0.apk')
+const BASE_APK_PATH = fs.existsSync(path.resolve(ROOT, 'android/base-template.apk'))
+  ? path.resolve(ROOT, 'android/base-template.apk')
   : path.resolve(ROOT, 'public/downloads/nexora-release.apk');
+const BASE_DEX_PATH = path.resolve(ROOT, 'android/base-classes.dex');
 const KEYSTORE_PATH = path.resolve(ROOT, 'android/keystore/nexora-release.jks');
 const KEYSTORE_PASS = 'nexora2026securekey';
 const ASSETS_WWW_DIR = path.resolve(ROOT, 'android/assets/www');
@@ -123,36 +125,11 @@ if (verParts.length === 3 && verParts.every((p) => p.length === 1)) {
 // versionCode int32 LE is at offset 1624
 manifestBuf.writeUInt32LE(VERSION_CODE, 1624);
 
-// 4. Patch classes.dex with VERSION_NAME and VERSION_CODE and recompute SHA-1 + Adler32
-const dexBuf = Buffer.from(baseZip.entries.get('classes.dex').rawData);
-// Update string constant "1.2.0" at offset 5262..5267
-if (verParts.length === 3 && verParts.every((p) => p.length === 1)) {
-  dexBuf.write(VERSION_NAME, 5262, 5, 'ascii');
-}
-// Update const/4 v2, #VERSION_CODE at offset 3999 (upper nibble = VERSION_CODE & 0x7, lower nibble = 2)
-if (VERSION_CODE >= 1 && VERSION_CODE <= 7) {
-  dexBuf[3999] = ((VERSION_CODE & 0x0f) << 4) | 0x02;
-}
-// Update static field initializer for VERSION_CODE at offset 8700
-dexBuf[8700] = VERSION_CODE & 0xff;
-
-// Recompute DEX SHA-1 signature (bytes 12..32 = SHA-1 of bytes 32..end)
-const dexSha1 = crypto.createHash('sha1').update(dexBuf.subarray(32)).digest();
-dexSha1.copy(dexBuf, 12);
-
-// Recompute DEX Adler32 checksum (bytes 8..12 = Adler32 of bytes 12..end)
-function computeAdler32(buf) {
-  let a = 1;
-  let b = 0;
-  const MOD = 65521;
-  for (let i = 0; i < buf.length; i++) {
-    a = (a + buf[i]) % MOD;
-    b = (b + a) % MOD;
-  }
-  return ((b << 16) | a) >>> 0;
-}
-const dexAdler = computeAdler32(dexBuf.subarray(12));
-dexBuf.writeUInt32LE(dexAdler, 8);
+// 4. Compile fresh classes.dex with MainActivity.savePdfToDownloads, MainActivity.openSavedPdf, and MainActivity$3.onJsPrompt
+const rawBaseDex = fs.existsSync(BASE_DEX_PATH)
+  ? fs.readFileSync(BASE_DEX_PATH)
+  : Buffer.from(baseZip.entries.get('classes.dex').rawData);
+const dexBuf = buildNexoraClassesDex(rawBaseDex, VERSION_NAME, VERSION_CODE);
 
 // 5. Ensure production web build exists and copy dist/ into android/assets/www/
 const distDir = path.resolve(ROOT, 'dist');
@@ -501,14 +478,18 @@ finalEocd.writeUInt32LE(finalCdOffset, 16);
 
 const finalApkBuf = Buffer.concat([entriesBuf, apkSigningBlock, cdBuf, finalEocd]);
 
-// 11. Write signed APK artifacts and update release-info.json
+// 11. Write signed APK artifact (only keep the newly built working APK) and update release-info.json
 const downloadsDir = path.resolve(ROOT, 'public/downloads');
 fs.mkdirSync(downloadsDir, { recursive: true });
 
-const versionedApkPath = path.resolve(downloadsDir, `nexora-v${VERSION_NAME}.apk`);
-const latestApkPath = path.resolve(downloadsDir, 'nexora-release.apk');
+// Remove any old/stale APK or idsig files first
+for (const f of fs.readdirSync(downloadsDir)) {
+  if (f.endsWith('.apk') || f.endsWith('.idsig')) {
+    try { fs.unlinkSync(path.resolve(downloadsDir, f)); } catch {}
+  }
+}
 
-fs.writeFileSync(versionedApkPath, finalApkBuf);
+const latestApkPath = path.resolve(downloadsDir, 'nexora-release.apk');
 fs.writeFileSync(latestApkPath, finalApkBuf);
 
 const apkSha256 = crypto.createHash('sha256').update(finalApkBuf).digest('hex');
@@ -537,24 +518,12 @@ const distDownloadsDir = path.resolve(ROOT, 'dist/downloads');
 if (fs.existsSync(path.resolve(ROOT, 'dist'))) {
   fs.mkdirSync(distDownloadsDir, { recursive: true });
   for (const f of fs.readdirSync(distDownloadsDir)) {
-    if ((f.endsWith('.apk') || f.endsWith('.idsig')) && f !== 'nexora-release.apk' && f !== `nexora-v${VERSION_NAME}.apk`) {
+    if (f.endsWith('.apk') || f.endsWith('.idsig')) {
       try { fs.unlinkSync(path.resolve(distDownloadsDir, f)); } catch {}
     }
   }
   fs.writeFileSync(path.resolve(distDownloadsDir, 'release-info.json'), releaseJsonStr, 'utf8');
-  fs.writeFileSync(path.resolve(distDownloadsDir, `nexora-v${VERSION_NAME}.apk`), finalApkBuf);
   fs.writeFileSync(path.resolve(distDownloadsDir, 'nexora-release.apk'), finalApkBuf);
-}
-
-// Clean up obsolete historical APK binaries in public/downloads (keep nexora-release.apk and current versioned APK)
-for (const f of fs.readdirSync(downloadsDir)) {
-  if (
-    (f.endsWith('.apk') || f.endsWith('.idsig')) &&
-    f !== 'nexora-release.apk' &&
-    f !== `nexora-v${VERSION_NAME}.apk`
-  ) {
-    try { fs.unlinkSync(path.resolve(downloadsDir, f)); } catch {}
-  }
 }
 
 // Clean up temporary android/build and android/assets staging directories after APK is packaged
@@ -564,8 +533,7 @@ try {
 } catch {}
 
 console.log(`=== GENUINE NEXORA APK v${VERSION_NAME} (code ${VERSION_CODE}) BUILT & SIGNED ===`);
-console.log(`Artifact: ${versionedApkPath}`);
-console.log(`Latest Alias: ${latestApkPath}`);
+console.log(`Artifact: ${latestApkPath}`);
 console.log(`Size: ${apkSizeKB} (${finalApkBuf.length} bytes)`);
 console.log(`SHA-256: ${apkSha256}`);
 console.log(`Verified: v1 (CMS/PKCS#7) + v2 (0x7109871a) + v3 (0xf05368c0) RSA-2048 signatures OK`);

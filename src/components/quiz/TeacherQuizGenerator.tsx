@@ -58,7 +58,11 @@ import { audioFX } from '../../services/audio';
 import { OfflineWarningModal } from '../OfflineWarningModal';
 import { QuestionPaperPreviewModal } from './QuestionPaperPreviewModal';
 import { EnglishQuestionPaperGenerator } from './EnglishQuestionPaperGenerator';
-import { downloadQuestionPaperPdf } from '../../utils/pdfGenerator';
+import {
+  downloadQuestionPaperPdf,
+  openSavedAndroidPdf,
+  isAndroidApkEnvironment,
+} from '../../utils/pdfGenerator';
 
 interface TeacherQuizGeneratorProps {
   onQuizGeneratedForReview: (quiz: Quiz) => void;
@@ -320,6 +324,11 @@ export const TeacherQuizGenerator: React.FC<TeacherQuizGeneratorProps> = ({
   const [genStep, setGenStep] = useState<string>('');
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [isOfflineWarningOpen, setIsOfflineWarningOpen] = useState<boolean>(false);
+  const [pdfSaveNotice, setPdfSaveNotice] = useState<{
+    message: string;
+    savedUri?: string;
+    filename?: string;
+  } | null>(null);
 
   // Filter available subjects when stream changes
   const availableSubjects = useMemo(() => {
@@ -2109,6 +2118,33 @@ export const TeacherQuizGenerator: React.FC<TeacherQuizGeneratorProps> = ({
           </div>
         </div>
 
+        {pdfSaveNotice && (
+          <div className="p-3 rounded-xl bg-emerald-950/60 border border-emerald-400/50 text-emerald-300 text-xs font-mono-code flex items-center justify-between gap-3 animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>{pdfSaveNotice.message}</span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {(pdfSaveNotice.savedUri || isAndroidApkEnvironment()) && (
+                <button
+                  type="button"
+                  onClick={() => openSavedAndroidPdf(pdfSaveNotice.savedUri, pdfSaveNotice.filename)}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-500/25 border border-emerald-400/60 text-emerald-200 hover:text-white font-hud font-bold text-[11px] cursor-pointer"
+                >
+                  OPEN PDF
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setPdfSaveNotice(null)}
+                className="px-2 py-0.5 text-slate-400 hover:text-white cursor-pointer"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
         {savedQuizzes.length === 0 ? (
           <div className="p-8 rounded-2xl bg-slate-950/50 border border-slate-800 text-center text-slate-400 text-xs font-mono-code">
             No question papers or quizzes saved yet. Configure questions above and click &quot;GENERATE QUESTION PAPER&quot; to begin.
@@ -2209,9 +2245,16 @@ export const TeacherQuizGenerator: React.FC<TeacherQuizGeneratorProps> = ({
                         type="button"
                         onClick={async () => {
                           audioFX.playClick();
+                          setPdfSaveNotice(null);
                           try {
-                            await downloadQuestionPaperPdf(quiz, { includeAnswerKey: false });
+                            const res = await downloadQuestionPaperPdf(quiz, { includeAnswerKey: false });
                             audioFX.playSuccess();
+                            const locLabel = res.storageLocation || `Downloads/${res.filename}`;
+                            setPdfSaveNotice({
+                              message: `PDF saved to Downloads (${locLabel})`,
+                              savedUri: res.savedUri,
+                              filename: res.filename,
+                            });
                           } catch (err: any) {
                             audioFX.playError();
                             setGenerationError(

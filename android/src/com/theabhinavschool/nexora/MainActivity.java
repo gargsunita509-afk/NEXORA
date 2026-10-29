@@ -1,15 +1,22 @@
 package com.theabhinavschool.nexora;
 
 import android.app.Activity;
+import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.content.Intent;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.util.Base64;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.webkit.DownloadListener;
+import android.webkit.JsPromptResult;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -17,6 +24,10 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.ProgressBar;
+import android.widget.Toast;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 
 public class MainActivity extends Activity {
 
@@ -24,8 +35,8 @@ public class MainActivity extends Activity {
     public static final String LOCAL_ENTRY_URL = "file:///android_asset/www/index.html";
     // Public production server pointer (used for online update checks, live features, and API sync)
     public static final String PRODUCTION_URL = "https://ais-pre-cjjqxynp5pw6257ks3igyi-205056013380.asia-southeast1.run.app";
-    public static final String APP_VERSION = "1.7.0";
-    public static final int VERSION_CODE = 7;
+    public static final String APP_VERSION = "1.8.0";
+    public static final int VERSION_CODE = 8;
 
     private WebView mWebView;
     private ProgressBar mProgressBar;
@@ -112,11 +123,17 @@ public class MainActivity extends Activity {
         String defaultUA = settings.getUserAgentString();
         settings.setUserAgentString(defaultUA + " NEXORA_Android_App/" + APP_VERSION + " (VersionCode/" + VERSION_CODE + ")");
 
-        // Delegate APK and attachment downloads to Android system downloader / package installer
+        // Delegate APK and attachment downloads to Android system downloader / native PDF saver
         mWebView.setDownloadListener(new DownloadListener() {
             @Override
             public void onDownloadStart(String url, String userAgent, String contentDisposition, String mimeType, long contentLength) {
-                if (url != null && !url.startsWith("blob:")) {
+                if (url == null) return;
+                if (url.startsWith("data:application/pdf;base64,")) {
+                    String b64 = url.substring("data:application/pdf;base64,".length());
+                    savePdfToDownloads("NEXORA_Document.pdf", b64);
+                    return;
+                }
+                if (!url.startsWith("blob:")) {
                     openExternalDownload(url);
                 }
             }
@@ -200,7 +217,113 @@ public class MainActivity extends Activity {
                     mProgressBar.setVisibility(View.GONE);
                 }
             }
+
+            @Override
+            public boolean onJsPrompt(WebView view, String url, String message, String defaultValue, JsPromptResult result) {
+                if (message != null && message.startsWith("NEXORA_SAVE_PDF:")) {
+                    String filename = message.substring("NEXORA_SAVE_PDF:".length());
+                    String status = savePdfToDownloads(filename, defaultValue);
+                    result.confirm(status);
+                    return true;
+                }
+                if (message != null && message.startsWith("NEXORA_OPEN_PDF:")) {
+                    String status = openSavedPdf(defaultValue);
+                    result.confirm(status);
+                    return true;
+                }
+                return super.onJsPrompt(view, url, message, defaultValue, result);
+            }
         });
+    }
+
+    public String savePdfToDownloads(String rawFilename, String base64Data) {
+        try {
+            if (base64Data == null) return "ERR:Missing PDF data";
+            String filename = (rawFilename == null || rawFilename.isEmpty()) ? "NEXORA_Document.pdf" : rawFilename;
+            if (!filename.endsWith(".pdf")) filename = filename + ".pdf";
+            String cleanB64 = base64Data;
+            int commaIdx = cleanB64.indexOf(',');
+            if (commaIdx >= 0) {
+                cleanB64 = cleanB64.substring(commaIdx + 1);
+            }
+            byte[] pdfBytes = Base64.decode(cleanB64, Base64.DEFAULT);
+            if (pdfBytes == null || pdfBytes.length < 100) {
+                return "ERR:Invalid or empty PDF payload";
+            }
+            if (pdfBytes[0] != 0x25 || pdfBytes[1] != 0x50 || pdfBytes[2] != 0x44 || pdfBytes[3] != 0x46) {
+                return "ERR:Invalid PDF header signature";
+            }
+
+            if (Build.VERSION.SDK_INT >= 29) {
+                ContentResolver resolver = getContentResolver();
+                ContentValues values = new ContentValues();
+                values.put("_display_name", filename);
+                values.put("mime_type", "application/pdf");
+                values.put("relative_path", "Download");
+                values.put("is_pending", Integer.valueOf(1));
+                Uri collection = Uri.parse("content://media/external/downloads");
+                Uri itemUri = resolver.insert(collection, values);
+                if (itemUri != null) {
+                    OutputStream os = resolver.openOutputStream(itemUri);
+                    if (os != null) {
+                        os.write(pdfBytes);
+                        os.flush();
+                        os.close();
+                        ContentValues updateValues = new ContentValues();
+                        updateValues.put("is_pending", Integer.valueOf(0));
+                        resolver.update(itemUri, updateValues, null, null);
+                        Cursor cursor = resolver.query(itemUri, null, null, null, null);
+                        if (cursor != null) {
+                            boolean exists = cursor.moveToFirst();
+                            cursor.close();
+                            if (exists) {
+                                Toast.makeText(this, "PDF saved to Downloads", Toast.LENGTH_LONG).show();
+                                return "OK|" + itemUri.toString() + "|" + pdfBytes.length + "|MediaStore|Downloads/" + filename;
+                            }
+                        }
+                    }
+                }
+            }
+
+            File dlDir = Environment.getExternalStoragePublicDirectory("Download");
+            if (!dlDir.exists()) dlDir.mkdirs();
+            File outFile = new File(dlDir, filename);
+            if (outFile.exists()) {
+                outFile = new File(dlDir, System.currentTimeMillis() + "_" + filename);
+            }
+            FileOutputStream fos = new FileOutputStream(outFile);
+            fos.write(pdfBytes);
+            fos.flush();
+            fos.close();
+            if (outFile.exists() && outFile.length() >= 100L) {
+                Toast.makeText(this, "PDF saved to Downloads", Toast.LENGTH_LONG).show();
+                return "OK|" + Uri.fromFile(outFile).toString() + "|" + pdfBytes.length + "|LegacyDownload|Downloads/" + outFile.getName();
+            }
+            return "ERR:File verification failed";
+        } catch (Exception e) {
+            return "ERR:" + e.getMessage();
+        }
+    }
+
+    public String openSavedPdf(String uriStr) {
+        try {
+            if (uriStr != null && uriStr.startsWith("content://")) {
+                Intent viewIntent = new Intent(Intent.ACTION_VIEW);
+                viewIntent.setDataAndType(Uri.parse(uriStr), "application/pdf");
+                viewIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                startActivity(viewIntent);
+                return "OK";
+            }
+        } catch (Exception ignored) {
+        }
+        try {
+            Intent dlIntent = new Intent("android.intent.action.VIEW_DOWNLOADS");
+            dlIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(dlIntent);
+            return "OK";
+        } catch (Exception e) {
+            return "ERR:" + e.getMessage();
+        }
     }
 
     @Override

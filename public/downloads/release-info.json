@@ -1,14 +1,14 @@
 {
-  "version": "1.7.0",
-  "versionCode": 7,
+  "version": "1.8.0",
+  "versionCode": 8,
   "releaseDate": "2026-10-29",
   "minSupportedVersion": "1.0.0",
   "apkUrl": "/downloads/nexora-release.apk",
-  "versionedApkUrl": "/downloads/nexora-v1.7.0.apk",
-  "apkSize": "920K",
-  "sha256": "5a772f4edc86eb0fc3f48422137c06ec8e6ca7625709aaff707a1058b203c351",
+  "versionedApkUrl": "/downloads/nexora-v1.8.0.apk",
+  "apkSize": "997K",
+  "sha256": "50f7b24272576ee4f9e9cb767cee852e45e50461a10be1b1bb8ada5779ba75b9",
   "packageName": "com.theabhinavschool.nexora",
   "appName": "NEXORA",
-  "releaseNotes": "NEXORA v1.7.0 Production Release: Default CURRENT TIMETABLE (Class In-Charge: Diksha Mam) with instant OLD TIMETABLE switcher, 1-page A4 landscape PDF & Print export, Android APK native PDF download bridge, and Node.js production server ESM startup fix.",
+  "releaseNotes": "NEXORA v1.8.0 Production Release: Native Android MediaStore.Downloads PDF saving with verified file creation & direct Open PDF support, Gemini CBSE Chapter & Syllabus-Locked Question Paper Engine, and Default CURRENT TIMETABLE with instant OLD TIMETABLE switcher.",
   "platform": "android"
 }

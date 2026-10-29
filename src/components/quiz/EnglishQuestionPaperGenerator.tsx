@@ -30,7 +30,11 @@ import { apkAwareFetch as fetch } from '../../services/apkApiBridge';
 import { audioFX } from '../../services/audio';
 import { OfflineWarningModal } from '../OfflineWarningModal';
 import { QuestionPaperPreviewModal } from './QuestionPaperPreviewModal';
-import { downloadQuestionPaperPdf } from '../../utils/pdfGenerator';
+import {
+  downloadQuestionPaperPdf,
+  openSavedAndroidPdf,
+  isAndroidApkEnvironment,
+} from '../../utils/pdfGenerator';
 import {
   HORNBILL_PROSE_CHAPTERS,
   HORNBILL_POETRY_POEMS,
@@ -175,6 +179,11 @@ export const EnglishQuestionPaperGenerator: React.FC<EnglishQuestionPaperGenerat
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [localPreviewPaper, setLocalPreviewPaper] = useState<Quiz | null>(null);
   const [isOfflineWarningOpen, setIsOfflineWarningOpen] = useState<boolean>(false);
+  const [pdfSaveNotice, setPdfSaveNotice] = useState<{
+    message: string;
+    savedUri?: string;
+    filename?: string;
+  } | null>(null);
 
   // Active section tab
   const [activeTab, setActiveTab] = useState<'syllabus' | 'reading' | 'grammar' | 'writing' | 'literature' | 'saved'>('syllabus');
@@ -1433,6 +1442,32 @@ export const EnglishQuestionPaperGenerator: React.FC<EnglishQuestionPaperGenerat
       {/* PANEL 6: SAVED ENGLISH PAPERS */}
       {activeTab === 'saved' && (
         <div className="space-y-3 animate-in fade-in">
+          {pdfSaveNotice && (
+            <div className="p-3 rounded-xl bg-emerald-950/60 border border-emerald-400/50 text-emerald-300 text-xs font-mono-code flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{pdfSaveNotice.message}</span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {(pdfSaveNotice.savedUri || isAndroidApkEnvironment()) && (
+                  <button
+                    type="button"
+                    onClick={() => openSavedAndroidPdf(pdfSaveNotice.savedUri, pdfSaveNotice.filename)}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-500/25 border border-emerald-400/60 text-emerald-200 hover:text-white font-hud font-bold text-[11px] cursor-pointer"
+                  >
+                    OPEN PDF
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setPdfSaveNotice(null)}
+                  className="px-2 py-0.5 text-slate-400 hover:text-white cursor-pointer"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
           {savedQuizzes.filter((q) => q.isQuestionPaper && (q.subject.toLowerCase().includes('english'))).length === 0 ? (
             <div className="p-8 text-center text-slate-400 text-xs bg-slate-900/40 rounded-xl border border-white/10">
               No English question papers generated yet. Click "Generate English Paper" above to formulate an official CBSE 2026–27 examination paper.
@@ -1466,9 +1501,16 @@ export const EnglishQuestionPaperGenerator: React.FC<EnglishQuestionPaperGenerat
                       type="button"
                       onClick={async () => {
                         audioFX.playClick();
+                        setPdfSaveNotice(null);
                         try {
-                          await downloadQuestionPaperPdf(paper, { includeAnswerKey: false });
+                          const res = await downloadQuestionPaperPdf(paper, { includeAnswerKey: false });
                           audioFX.playSuccess();
+                          const locLabel = res.storageLocation || `Downloads/${res.filename}`;
+                          setPdfSaveNotice({
+                            message: `PDF saved to Downloads (${locLabel})`,
+                            savedUri: res.savedUri,
+                            filename: res.filename,
+                          });
                         } catch (err: any) {
                           audioFX.playError();
                           setGenerationError(`PDF download error: ${err?.message || 'Please try again'}`);

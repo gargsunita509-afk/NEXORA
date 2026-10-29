@@ -15,6 +15,8 @@ export interface PdfGenerationResult {
   byteLength?: number;
   saveMethod?: 'android_native_download' | 'web_share' | 'browser_download' | 'headless';
   downloadUrl?: string;
+  savedUri?: string;
+  storageLocation?: string;
 }
 
 export interface BuiltPdfDocument {
@@ -27,6 +29,111 @@ export interface BuiltPdfDocument {
   docKind?: 'timetable' | 'timetable_old' | 'question_paper';
   quizSpec?: Quiz;
   includeAnswerKey?: boolean;
+}
+
+/**
+ * Sanitizes a PDF filename so it is safe across Android MediaStore.Downloads, legacy FAT/ext4 storage, and browsers.
+ */
+export function sanitizePdfFilename(rawName: string): string {
+  const cleaned = String(rawName || 'NEXORA_Document.pdf')
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  if (!cleaned) return 'NEXORA_Document.pdf';
+  return cleaned.toLowerCase().endsWith('.pdf') ? cleaned : `${cleaned}.pdf`;
+}
+
+export interface NativeAndroidPdfSaveResult {
+  invoked: boolean;
+  ok: boolean;
+  uri?: string;
+  byteLength?: number;
+  storageMethod?: string;
+  displayPath?: string;
+  error?: string;
+}
+
+/**
+ * Invokes the synchronous native Android WebChromeClient.onJsPrompt bridge ("NEXORA_SAVE_PDF:<filename>")
+ * implemented in MainActivity.savePdfToDownloads(filename, base64Data).
+ * Writes directly to MediaStore.Downloads (Android 10+) or Environment.DIRECTORY_DOWNLOADS (Android 5-9)
+ * and verifies that the saved file exists and is >= 100 bytes before returning ok: true.
+ */
+export function saveBase64PdfViaAndroidBridge(
+  filename: string,
+  base64Data: string
+): NativeAndroidPdfSaveResult {
+  if (typeof window === 'undefined' || typeof window.prompt !== 'function') {
+    return { invoked: false, ok: false };
+  }
+  const cleanFilename = sanitizePdfFilename(filename);
+  const cleanBase64 = String(base64Data || '').replace(/^data:application\/pdf;base64,/i, '').trim();
+  if (!cleanBase64 || cleanBase64.length < 120) {
+    return {
+      invoked: true,
+      ok: false,
+      error: 'Generated PDF data is empty or corrupted (< 100 bytes).',
+    };
+  }
+
+  try {
+    const reply = window.prompt(`NEXORA_SAVE_PDF:${cleanFilename}`, cleanBase64);
+    if (typeof reply !== 'string' || !reply) {
+      return { invoked: false, ok: false };
+    }
+    if (reply.startsWith('OK|')) {
+      const parts = reply.split('|');
+      const uri = parts[1] || '';
+      const writtenBytes = Number(parts[2]) || 0;
+      const storageMethod = parts[3] || 'Downloads';
+      const displayPath = parts[4] || `Downloads/${cleanFilename}`;
+      if (writtenBytes < 100) {
+        return {
+          invoked: true,
+          ok: false,
+          error: `Saved PDF verification failed: file size is ${writtenBytes} bytes.`,
+        };
+      }
+      return {
+        invoked: true,
+        ok: true,
+        uri,
+        byteLength: writtenBytes,
+        storageMethod,
+        displayPath,
+      };
+    }
+    if (reply.startsWith('ERR:')) {
+      return {
+        invoked: true,
+        ok: false,
+        error: reply.slice(4).trim() || 'Native Android storage write failed.',
+      };
+    }
+    return { invoked: false, ok: false };
+  } catch (err: any) {
+    return {
+      invoked: false,
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+/**
+ * Opens a previously saved PDF URI (or the Android system Downloads view) via the native Android bridge.
+ */
+export function openSavedAndroidPdf(uri?: string, filename?: string): boolean {
+  if (typeof window === 'undefined' || typeof window.prompt !== 'function') {
+    return false;
+  }
+  try {
+    const cleanFilename = sanitizePdfFilename(filename || 'NEXORA_Document.pdf');
+    const reply = window.prompt(`NEXORA_OPEN_PDF:${cleanFilename}`, uri || '');
+    return typeof reply === 'string' && reply.startsWith('OK');
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -356,6 +463,7 @@ function finalizeBuiltPdf(
   filename: string,
   meta?: { docKind?: 'timetable' | 'timetable_old' | 'question_paper'; quizSpec?: Quiz; includeAnswerKey?: boolean }
 ): BuiltPdfDocument {
+  const cleanFilename = sanitizePdfFilename(filename);
   const pageCount = doc.getNumberOfPages();
   const arrayBuffer = doc.output('arraybuffer');
   const uint8 = new Uint8Array(arrayBuffer);
@@ -370,7 +478,7 @@ function finalizeBuiltPdf(
   const base64 = uint8ToBase64(uint8);
   return {
     doc,
-    filename,
+    filename: cleanFilename,
     pageCount,
     byteLength: uint8.byteLength,
     uint8,
@@ -407,12 +515,14 @@ function triggerDirectUrlDownload(downloadUrl: string, filename: string): void {
 /**
  * Async stage-2 saver: saves a validated BuiltPdfDocument on Android APK or Website.
  * Separates PDF generation from file saving so each stage reports meaningful errors.
+ * Never claims success unless the PDF file is genuinely written or handed off to a verified saver.
  */
 export async function saveBuiltPdfDocument(
   built: BuiltPdfDocument,
   options: { forceServerBridge?: boolean } = {}
 ): Promise<PdfGenerationResult> {
-  const { doc, filename, pageCount, byteLength, uint8, base64, docKind, quizSpec, includeAnswerKey } = built;
+  const { doc, pageCount, byteLength, uint8, base64, docKind, quizSpec, includeAnswerKey } = built;
+  const filename = sanitizePdfFilename(built.filename);
 
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     return {
@@ -424,12 +534,38 @@ export async function saveBuiltPdfDocument(
     };
   }
 
-  const useAndroidBridge = options.forceServerBridge || isAndroidApkEnvironment();
+  const inAndroidApk = isAndroidApkEnvironment();
 
-  // Path 1: Android APK WebView — prepare real HTTPS download URL at /downloads/nexora-paper/:token/:filename
-  // so MainActivity's native download handler saves the PDF via Android's system downloader.
+  // Primary Android APK Path: Synchronous Native Bridge ("NEXORA_SAVE_PDF:" -> MainActivity.savePdfToDownloads)
+  // Writes directly into MediaStore.Downloads (Android 10+) or Environment.DIRECTORY_DOWNLOADS (Android 5-9)
+  // and verifies file existence and byteLength >= 100 before returning.
+  if (inAndroidApk && !options.forceServerBridge) {
+    const nativeRes = saveBase64PdfViaAndroidBridge(filename, base64);
+    if (nativeRes.invoked) {
+      if (nativeRes.ok && (nativeRes.byteLength || 0) >= 100) {
+        return {
+          success: true,
+          filename,
+          pageCount,
+          byteLength: nativeRes.byteLength || byteLength,
+          saveMethod: 'android_native_download',
+          savedUri: nativeRes.uri,
+          storageLocation: nativeRes.displayPath || `Downloads/${filename}`,
+        };
+      }
+      throw new Error(
+        `Could not save PDF to phone Downloads folder: ${
+          nativeRes.error || 'Native storage write failed verification.'
+        }`
+      );
+    }
+  }
+
+  const useAndroidBridge = options.forceServerBridge || inAndroidApk;
+
+  // Path 1B: Fallback Android / Server Bridge if running in an older WebView without NEXORA_SAVE_PDF prompt support
   if (useAndroidBridge) {
-    // If device is strictly offline, immediately invoke Web Share or direct local save while user gesture is active
+    // Try Web Share API with PDF File object first if offline or if native prompt was not present
     const isStrictlyOffline = typeof navigator !== 'undefined' && navigator.onLine === false && !options.forceServerBridge;
     if (isStrictlyOffline && typeof navigator !== 'undefined' && typeof navigator.share === 'function' && typeof File !== 'undefined') {
       try {
@@ -438,7 +574,7 @@ export async function saveBuiltPdfDocument(
           await navigator.share({
             files: [pdfFile],
             title: filename,
-            text: 'NEXORA Official Examination Paper PDF',
+            text: 'NEXORA Official PDF Document',
           });
           return {
             success: true,
@@ -446,6 +582,7 @@ export async function saveBuiltPdfDocument(
             pageCount,
             byteLength,
             saveMethod: 'web_share',
+            storageLocation: 'Shared via Android System Sheet',
           };
         }
       } catch (shareErr: any) {
@@ -473,10 +610,34 @@ export async function saveBuiltPdfDocument(
         throw new Error(data.error || 'Server did not return a valid PDF download path.');
       }
 
+      // If data.embedded is true inside an older APK without the native prompt bridge,
+      // try Web Share API first so the user can save directly on the phone without relying on an external browser redirect
+      if (data.embedded && !options.forceServerBridge && typeof navigator !== 'undefined' && typeof navigator.share === 'function' && typeof File !== 'undefined') {
+        try {
+          const pdfFile = new File([uint8 as unknown as BlobPart], filename, { type: 'application/pdf' });
+          if (!navigator.canShare || navigator.canShare({ files: [pdfFile] })) {
+            await navigator.share({
+              files: [pdfFile],
+              title: filename,
+              text: 'NEXORA Official PDF Document',
+            });
+            return {
+              success: true,
+              filename,
+              pageCount,
+              byteLength,
+              saveMethod: 'web_share',
+              storageLocation: 'Shared via Android System Sheet',
+            };
+          }
+        } catch (shareErr: any) {
+          if (shareErr && shareErr.name === 'AbortError') {
+            throw new Error('PDF save was cancelled.');
+          }
+        }
+      }
+
       let fullDownloadUrl = resolveApiUrl(data.downloadPath);
-      // If POST /api/pdf/prepare was handled by the embedded APK bridge (because WebView ran on file://),
-      // append the compact spec query param so when MainActivity hands the URL to Android Chrome,
-      // server.ts can reconstruct the exact PDF even without the in-memory token!
       if (data.embedded) {
         if (docKind === 'timetable' || docKind === 'timetable_old') {
           fullDownloadUrl += `${fullDownloadUrl.includes('?') ? '&' : '?'}spec=${docKind}`;
@@ -489,14 +650,6 @@ export async function saveBuiltPdfDocument(
       }
 
       triggerDirectUrlDownload(fullDownloadUrl, filename);
-      // Also trigger local doc.save as a secondary browser fallback when embedded
-      if (data.embedded) {
-        try {
-          doc.save(filename);
-        } catch {
-          // ignore secondary save warning
-        }
-      }
 
       return {
         success: true,
@@ -505,11 +658,12 @@ export async function saveBuiltPdfDocument(
         byteLength: data.byteLength || byteLength,
         saveMethod: 'android_native_download',
         downloadUrl: fullDownloadUrl,
+        storageLocation: `Downloads/${data.filename || filename}`,
       };
     } catch (bridgeErr: any) {
       console.warn('[PDF Save] Android server bridge fallback:', bridgeErr);
 
-      // Fallback 1: Web Share API with PDF File object (opens Android system share/save sheet)
+      // Fallback: Web Share API with PDF File object (opens Android system share/save sheet)
       if (typeof navigator !== 'undefined' && typeof navigator.share === 'function' && typeof File !== 'undefined') {
         try {
           const pdfFile = new File([uint8 as unknown as BlobPart], filename, { type: 'application/pdf' });
@@ -517,7 +671,7 @@ export async function saveBuiltPdfDocument(
             await navigator.share({
               files: [pdfFile],
               title: filename,
-              text: 'NEXORA Official Examination Paper PDF',
+              text: 'NEXORA Official PDF Document',
             });
             return {
               success: true,
@@ -525,6 +679,7 @@ export async function saveBuiltPdfDocument(
               pageCount,
               byteLength,
               saveMethod: 'web_share',
+              storageLocation: 'Shared via Android System Sheet',
             };
           }
         } catch (shareErr: any) {
@@ -534,23 +689,11 @@ export async function saveBuiltPdfDocument(
         }
       }
 
-      // Fallback 2: Direct jsPDF / Blob download so it never fails if client PDF bytes are valid
-      try {
-        doc.save(filename);
-        return {
-          success: true,
-          filename,
-          pageCount,
-          byteLength,
-          saveMethod: 'browser_download',
-        };
-      } catch {
-        throw new Error(
-          `Could not save PDF on Android device: ${
-            bridgeErr instanceof Error ? bridgeErr.message : 'Unable to write PDF file to device storage.'
-          }`
-        );
-      }
+      throw new Error(
+        `Could not save PDF on Android device: ${
+          bridgeErr instanceof Error ? bridgeErr.message : 'Unable to write PDF file to device storage.'
+        }`
+      );
     }
   }
 
@@ -563,6 +706,7 @@ export async function saveBuiltPdfDocument(
       pageCount,
       byteLength,
       saveMethod: 'browser_download',
+      storageLocation: `Downloads/${filename}`,
     };
   } catch (primaryErr) {
     console.warn('Primary doc.save failed, using blob anchor fallback:', primaryErr);
@@ -583,6 +727,7 @@ export async function saveBuiltPdfDocument(
         pageCount,
         byteLength,
         saveMethod: 'browser_download',
+        storageLocation: `Downloads/${filename}`,
       };
     } catch (fallbackErr: any) {
       throw new Error(
@@ -594,15 +739,33 @@ export async function saveBuiltPdfDocument(
 
 /**
  * Synchronous wrapper for backward compatibility and synchronous unit tests.
- * Also triggers the Android APK server download bridge if called inside the Android APK.
+ * Uses the synchronous native Android prompt bridge when running inside the Android APK.
  */
 function downloadDocumentSync(built: BuiltPdfDocument): PdfGenerationResult {
-  const { doc, filename, pageCount, byteLength } = built;
+  const { doc, pageCount, byteLength, base64 } = built;
+  const filename = sanitizePdfFilename(built.filename);
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     return { success: true, filename, pageCount, byteLength, saveMethod: 'headless' };
   }
 
   if (isAndroidApkEnvironment()) {
+    const nativeRes = saveBase64PdfViaAndroidBridge(filename, base64);
+    if (nativeRes.invoked) {
+      if (!nativeRes.ok || (nativeRes.byteLength || 0) < 100) {
+        throw new Error(
+          `Could not save PDF to phone Downloads folder: ${nativeRes.error || 'Native storage write failed.'}`
+        );
+      }
+      return {
+        success: true,
+        filename,
+        pageCount,
+        byteLength: nativeRes.byteLength || byteLength,
+        saveMethod: 'android_native_download',
+        savedUri: nativeRes.uri,
+        storageLocation: nativeRes.displayPath || `Downloads/${filename}`,
+      };
+    }
     void saveBuiltPdfDocument(built, { forceServerBridge: true }).catch((err) => {
       console.error('[PDF Sync Wrapper] Android PDF save failed:', err);
     });

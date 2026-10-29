@@ -27,18 +27,18 @@ import {
 } from '../utils/diaryHelper.ts';
 
 export const CURRENT_RELEASE_METADATA = {
-  version: '1.7.0',
-  versionCode: 7,
+  version: '1.8.0',
+  versionCode: 8,
   releaseDate: '2026-10-29',
   minSupportedVersion: '1.0.0',
   apkUrl: '/downloads/nexora-release.apk',
-  versionedApkUrl: '/downloads/nexora-v1.7.0.apk',
-  apkSize: '820K',
+  versionedApkUrl: '/downloads/nexora-v1.8.0.apk',
+  apkSize: '840K',
   sha256: '',
   packageName: 'com.theabhinavschool.nexora',
   appName: 'NEXORA',
   releaseNotes:
-    'NEXORA v1.7.0 Production Release: Default CURRENT TIMETABLE (Class In-Charge: Diksha Mam) with instant OLD TIMETABLE switcher, 1-page A4 landscape PDF & Print export, Android APK native PDF download bridge, and Node.js production server ESM startup fix.',
+    'NEXORA v1.8.0 Production Release: Native Android MediaStore.Downloads PDF saving with verified file creation & direct Open PDF support, Gemini CBSE Chapter & Syllabus-Locked Question Paper Engine, and Default CURRENT TIMETABLE with instant OLD TIMETABLE switcher.',
   platform: 'android' as const,
 };
 

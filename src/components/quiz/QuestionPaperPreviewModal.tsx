@@ -17,6 +17,8 @@ import {
   downloadQuestionPaperPdf,
   groupQuestionsIntoPaperSections,
   calculatePaperTotalMarks,
+  openSavedAndroidPdf,
+  isAndroidApkEnvironment,
 } from '../../utils/pdfGenerator';
 
 interface QuestionPaperPreviewModalProps {
@@ -39,6 +41,8 @@ export const QuestionPaperPreviewModal: React.FC<QuestionPaperPreviewModalProps>
     message: string;
     type: 'success' | 'error';
     includeAnswerKey?: boolean;
+    savedUri?: string;
+    filename?: string;
   } | null>(null);
   const [resolvedPaper, setResolvedPaper] = useState<Quiz | null>(quiz || null);
   const [isLoadingPaper, setIsLoadingPaper] = useState<boolean>(false);
@@ -134,12 +138,15 @@ export const QuestionPaperPreviewModal: React.FC<QuestionPaperPreviewModalProps>
           throw new Error('PDF file could not be saved.');
         }
         audioFX.playSuccess();
+        const locLabel = res.storageLocation || `Downloads/${res.filename}`;
         setPdfNotice({
           message: includeAnswerKey
-            ? `Answer Key PDF saved (${res.filename} • ${res.pageCount} ${res.pageCount === 1 ? 'Page' : 'Pages'})`
-            : `Question Paper PDF saved (${res.filename} • ${res.pageCount} ${res.pageCount === 1 ? 'Page' : 'Pages'})`,
+            ? `PDF saved to Downloads (${locLabel} • ${res.pageCount} ${res.pageCount === 1 ? 'Page' : 'Pages'})`
+            : `PDF saved to Downloads (${locLabel} • ${res.pageCount} ${res.pageCount === 1 ? 'Page' : 'Pages'})`,
           type: 'success',
           includeAnswerKey,
+          savedUri: res.savedUri,
+          filename: res.filename,
         });
       } catch (err: any) {
         console.error('Failed to generate or save question paper PDF:', err);
@@ -308,6 +315,15 @@ export const QuestionPaperPreviewModal: React.FC<QuestionPaperPreviewModalProps>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {pdfNotice.type === 'success' && (pdfNotice.savedUri || isAndroidApkEnvironment()) && (
+              <button
+                type="button"
+                onClick={() => openSavedAndroidPdf(pdfNotice.savedUri, pdfNotice.filename)}
+                className="px-2.5 py-1 rounded-lg bg-emerald-500/25 hover:bg-emerald-500/35 border border-emerald-400/60 text-emerald-200 hover:text-white font-hud font-bold text-[11px] cursor-pointer"
+              >
+                OPEN PDF
+              </button>
+            )}
             {pdfNotice.type === 'error' && (
               <button
                 type="button"

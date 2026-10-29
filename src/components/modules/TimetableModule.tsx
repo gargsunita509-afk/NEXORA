@@ -15,7 +15,11 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { PrintableTimetable } from '../PrintableTimetable';
-import { downloadTimetablePdf } from '../../utils/pdfGenerator';
+import {
+  downloadTimetablePdf,
+  openSavedAndroidPdf,
+  isAndroidApkEnvironment,
+} from '../../utils/pdfGenerator';
 import { DayOfWeek, Period, StreamType, TimetableSchedule, SubjectAllocation } from '../../types';
 import {
   DAYS_OF_WEEK,
@@ -131,6 +135,7 @@ export const TimetableModule: React.FC = () => {
 
   const [isExportingPdf, setIsExportingPdf] = useState<boolean>(false);
   const [pdfSuccessMessage, setPdfSuccessMessage] = useState<string | null>(null);
+  const [savedPdfMeta, setSavedPdfMeta] = useState<{ savedUri?: string; filename?: string; isError?: boolean } | null>(null);
 
   const handlePrintTimetable = () => {
     audioFX.playClick();
@@ -140,15 +145,19 @@ export const TimetableModule: React.FC = () => {
   const handleDownloadPdf = async () => {
     audioFX.playClick();
     setIsExportingPdf(true);
+    setSavedPdfMeta(null);
     try {
       const res = await downloadTimetablePdf({ version: timetableVersion });
       const label = timetableVersion === 'old' ? 'Old Timetable' : 'Current Timetable';
-      setPdfSuccessMessage(`${label} PDF downloaded successfully (${res.filename})`);
-      setTimeout(() => setPdfSuccessMessage(null), 4000);
+      const locLabel = res.storageLocation || `Downloads/${res.filename}`;
+      setPdfSuccessMessage(`${label} PDF saved to Downloads (${locLabel})`);
+      setSavedPdfMeta({ savedUri: res.savedUri, filename: res.filename, isError: false });
+      setTimeout(() => setPdfSuccessMessage(null), 8000);
     } catch (err: any) {
       console.error('Failed to generate timetable PDF:', err);
       setPdfSuccessMessage(`PDF export error: ${err.message || 'Please try again'}`);
-      setTimeout(() => setPdfSuccessMessage(null), 5000);
+      setSavedPdfMeta({ isError: true });
+      setTimeout(() => setPdfSuccessMessage(null), 6000);
     } finally {
       setIsExportingPdf(false);
     }
@@ -559,17 +568,34 @@ export const TimetableModule: React.FC = () => {
 
         {/* PDF Download Notice */}
         {pdfSuccessMessage && (
-          <div className="p-3 rounded-xl border border-emerald-400/50 bg-emerald-950/40 text-emerald-300 flex items-center justify-between gap-2.5 text-xs font-mono-code animate-in fade-in">
+          <div
+            className={`p-3 rounded-xl border flex items-center justify-between gap-2.5 text-xs font-mono-code animate-in fade-in ${
+              savedPdfMeta?.isError
+                ? 'border-red-400/50 bg-red-950/40 text-red-200'
+                : 'border-emerald-400/50 bg-emerald-950/40 text-emerald-300'
+            }`}
+          >
             <div className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>{pdfSuccessMessage}</span>
             </div>
-            <button
-              onClick={() => setPdfSuccessMessage(null)}
-              className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-200 hover:text-white text-[10px] font-bold"
-            >
-              DISMISS
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              {!savedPdfMeta?.isError && (savedPdfMeta?.savedUri || isAndroidApkEnvironment()) && (
+                <button
+                  type="button"
+                  onClick={() => openSavedAndroidPdf(savedPdfMeta?.savedUri, savedPdfMeta?.filename)}
+                  className="px-2.5 py-1 rounded bg-emerald-500/25 border border-emerald-400/50 text-emerald-200 hover:text-white text-[10px] font-hud font-bold cursor-pointer"
+                >
+                  OPEN PDF
+                </button>
+              )}
+              <button
+                onClick={() => setPdfSuccessMessage(null)}
+                className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-200 hover:text-white text-[10px] font-bold cursor-pointer"
+              >
+                DISMISS
+              </button>
+            </div>
           </div>
         )}
 
