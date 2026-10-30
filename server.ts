@@ -83,7 +83,14 @@ app.post('/api/gemini/chat', async (req, res) => {
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
     const systemInstruction = `You are CLASS OS AI, the smart command-center academic copilot for The Abhinav School (Class In-charge: Alka Mam).
 You support students across all four streams:
 - PCM (Physics, Chemistry, Mathematics)
@@ -119,9 +126,9 @@ Use clean markdown with headers, bullet points, and LaTeX-style or clear math ex
       parts: [{ text: prompt.trim() }]
     });
 
-    // Robust generation with candidate model fallback
+    // Robust generation with candidate model fallback across active Gemini models
     let reply = '';
-    const CHAT_MODELS = ['gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-flash-latest'];
+    const CHAT_MODELS = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite', 'gemini-2.5-flash'];
 
     for (const model of CHAT_MODELS) {
       try {
@@ -155,8 +162,14 @@ Use clean markdown with headers, bullet points, and LaTeX-style or clear math ex
   }
 });
 
-// Keep quiz generation on the configured production model for reproducibility.
-const CANDIDATE_MODELS = ['gemini-2.5-flash'];
+// Candidate models for quiz & question paper generation:
+// Attempts gemini-2.5-flash first per specification, cascading gracefully to active Gemini models if deprecated/exhausted
+const CANDIDATE_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-3.8-flash',
+  'gemini-flash-latest',
+  'gemini-3.1-flash-lite',
+];
 
 function withModelTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {

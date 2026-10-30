@@ -35,8 +35,8 @@ public class MainActivity extends Activity {
     public static final String LOCAL_ENTRY_URL = "file:///android_asset/www/index.html";
     // Public production server pointer (used for online update checks, live features, and API sync)
     public static final String PRODUCTION_URL = "https://ais-pre-cjjqxynp5pw6257ks3igyi-205056013380.asia-southeast1.run.app";
-    public static final String APP_VERSION = "1.8.0";
-    public static final int VERSION_CODE = 8;
+    public static final String APP_VERSION = "1.8.1";
+    public static final int VERSION_CODE = 9;
 
     private WebView mWebView;
     private ProgressBar mProgressBar;

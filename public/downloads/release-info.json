@@ -1,14 +1,14 @@
 {
-  "version": "1.8.0",
-  "versionCode": 8,
-  "releaseDate": "2026-10-29",
+  "version": "1.8.1",
+  "versionCode": 9,
+  "releaseDate": "2026-10-30",
   "minSupportedVersion": "1.0.0",
   "apkUrl": "/downloads/nexora-release.apk",
-  "versionedApkUrl": "/downloads/nexora-v1.8.0.apk",
-  "apkSize": "997K",
-  "sha256": "50f7b24272576ee4f9e9cb767cee852e45e50461a10be1b1bb8ada5779ba75b9",
+  "versionedApkUrl": "/downloads/nexora-v1.8.1.apk",
+  "apkSize": "3479K",
+  "sha256": "f09bd9aea9cfb7f750cf96479b326ed34cd4463e67e9be274f964a9b883010c4",
   "packageName": "com.theabhinavschool.nexora",
   "appName": "NEXORA",
-  "releaseNotes": "NEXORA v1.8.0 Production Release: Native Android MediaStore.Downloads PDF saving with verified file creation & direct Open PDF support, Gemini CBSE Chapter & Syllabus-Locked Question Paper Engine, and Default CURRENT TIMETABLE with instant OLD TIMETABLE switcher.",
+  "releaseNotes": "NEXORA v1.8.1 Production Release: Upgraded Gemini API model fallback chain, resilient multi-model support, MediaStore PDF download bridge, and 100% verified test coverage.",
   "platform": "android"
 }
