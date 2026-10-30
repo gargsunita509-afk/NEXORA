@@ -155,8 +155,8 @@ Use clean markdown with headers, bullet points, and LaTeX-style or clear math ex
   }
 });
 
-// Candidate models with automated fallback to guarantee uptime per @google/genai guidelines
-const CANDIDATE_MODELS = ['gemini-3-flash-preview', 'gemini-3.8-flash', 'gemini-flash-latest', 'gemini-2.5-flash'];
+// Keep quiz generation on the configured production model for reproducibility.
+const CANDIDATE_MODELS = ['gemini-2.5-flash'];
 
 function withModelTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -297,9 +297,18 @@ app.post('/api/gemini/quiz', async (req, res) => {
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
-  if (req.body?.fastVerify || !apiKey || apiKey.trim() === '' || apiKey === 'MY_GEMINI_API_KEY') {
-    const fallback = synthesizeCbseAssessment(req.body, 'gemini-3-flash-preview');
-    return res.status(fallback.status).json(fallback.body);
+  // Explicit verification mode may use the local synthesizer, but production generation
+  // must never silently substitute template questions for a failed Gemini request.
+  if (req.body?.fastVerify) {
+    const fallback = synthesizeCbseAssessment(req.body, 'local-verification-only');
+    return res.status(fallback.status).json({ ...fallback.body, verificationOnly: true });
+  }
+  if (!apiKey || apiKey.trim() === '' || apiKey === 'MY_GEMINI_API_KEY') {
+    return res.status(503).json({
+      error: 'Gemini question generation is unavailable because GEMINI_API_KEY is not configured. No fallback paper was generated.',
+      code: 'GEMINI_API_KEY_MISSING',
+      retryable: false,
+    });
   }
 
   try {
@@ -728,9 +737,13 @@ Return strictly a valid JSON object matching this schema with NO markdown code f
 
     return res.json({ success: true, quiz: parsed, modelUsed });
   } catch (err: any) {
-    console.warn('[AI Quiz Server] Falling back to CBSE assessment synthesizer after model error:', err?.message || err);
-    const fallback = synthesizeCbseAssessment(req.body, 'gemini-3-flash-preview');
-    return res.status(fallback.status).json(fallback.body);
+    console.error('[AI Quiz Server] Gemini question generation failed; refusing to substitute template questions:', err?.message || err);
+    return res.status(502).json({
+      error: 'Gemini could not generate a valid question set. No fallback paper was created. Please retry or review the generation settings.',
+      code: 'GEMINI_GENERATION_FAILED',
+      retryable: true,
+      model: 'gemini-2.5-flash',
+    });
   }
 });
 

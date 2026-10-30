@@ -2051,6 +2051,38 @@ export async function runAllVerificationTests(): Promise<TestResult[]> {
       if (invalidRes.status !== 400) {
         throw new Error(`Expected HTTP 400 for 0-question paper payload, got ${invalidRes.status}`);
       }
+
+      // 4. Verify explicit verificationOnly flag on fastVerify requests and refusal of silent template fallback on production requests
+      if (data.verificationOnly !== true || data.modelUsed !== 'local-verification-only') {
+        throw new Error(
+          `Expected fastVerify response to have verificationOnly=true and modelUsed='local-verification-only', got verificationOnly=${data.verificationOnly}, modelUsed=${data.modelUsed}`
+        );
+      }
+
+      const { handleEmbeddedApiRequest } = await import('../services/apkApiBridge');
+      const prodBridgeRes = await handleEmbeddedApiRequest('/api/gemini/quiz', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isQuestionPaper: true,
+          subject: 'Physics',
+          stream: 'PCM',
+          chapters: ['Units and Measurements'],
+          questionCountsByType: { mcq: 2, short_2: 1, short_3: 0, case_study: 0, long_5: 0 },
+          paperConfig: { durationMinutes: 60 },
+        }),
+      });
+      if (prodBridgeRes.status !== 502) {
+        throw new Error(
+          `Expected embedded bridge without fastVerify to refuse template fallback with 502, got ${prodBridgeRes.status}`
+        );
+      }
+      const prodBridgeBody = await prodBridgeRes.json();
+      if (prodBridgeBody.code !== 'GEMINI_GENERATION_FAILED' || prodBridgeBody.model !== 'gemini-2.5-flash') {
+        throw new Error(
+          `Expected GEMINI_GENERATION_FAILED and model='gemini-2.5-flash', got ${JSON.stringify(prodBridgeBody)}`
+        );
+      }
     }
   );
 
@@ -2584,11 +2616,12 @@ export async function runAllVerificationTests(): Promise<TestResult[]> {
         throw new Error('Presets marks mismatch for Unit Test or Mid-Term');
       }
 
-      // 7. Verify generation via /api/gemini/quiz
+      // 7. Verify generation via /api/gemini/quiz (using explicit fastVerify mode)
       const engRes = await fetch(resolveApiUrl('/api/gemini/quiz'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          fastVerify: true,
           isEnglishPaper: true,
           subject: 'English Core',
           classLevel: 'Class 11TH',
@@ -2631,8 +2664,8 @@ export async function runAllVerificationTests(): Promise<TestResult[]> {
       }
 
       const engData = await engRes.json();
-      if (!engData.success || !engData.quiz) {
-        throw new Error('API did not return a valid English question paper');
+      if (!engData.success || !engData.quiz || !engData.verificationOnly) {
+        throw new Error('API did not return a valid verificationOnly English question paper');
       }
 
       const paper = engData.quiz;

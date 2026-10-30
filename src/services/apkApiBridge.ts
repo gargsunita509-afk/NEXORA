@@ -1740,8 +1740,41 @@ export async function handleEmbeddedApiRequest(
 
   // 16. Gemini Question Paper & Speed Quiz Generation (/api/gemini/quiz, /api/gemini/quiz/regenerate-question, /api/gemini/chat)
   if (pathname === '/api/gemini/quiz' && method === 'POST') {
-    const result = synthesizeCbseAssessment(parsedBody, 'gemini-3-flash-preview');
-    return makeJsonResponse(result.status, result.body);
+    const { subject, isQuestionPaper, questionCountsByType, paperConfig } = parsedBody || {};
+    if (!subject || typeof subject !== 'string' || !subject.trim()) {
+      return makeJsonResponse(400, { error: 'Subject is required for quiz generation.' });
+    }
+    if (isQuestionPaper && questionCountsByType) {
+      const totalRequested =
+        (Number(questionCountsByType.mcq) || 0) +
+        (Number(questionCountsByType.short_2) || 0) +
+        (Number(questionCountsByType.short_3) || 0) +
+        (Number(questionCountsByType.case_study) || 0) +
+        (Number(questionCountsByType.long_5) || 0);
+      if (totalRequested <= 0) {
+        return makeJsonResponse(400, {
+          error: 'Question paper must include at least 1 question across Sections A–E.',
+          code: 'EMPTY_PAPER_CONFIG',
+        });
+      }
+      const dur = Number(paperConfig?.durationMinutes);
+      if (!Number.isFinite(dur) || dur <= 0) {
+        return makeJsonResponse(400, {
+          error: 'Question paper duration must be a positive number of minutes.',
+          code: 'INVALID_DURATION',
+        });
+      }
+    }
+    if (parsedBody?.fastVerify) {
+      const result = synthesizeCbseAssessment(parsedBody, 'local-verification-only');
+      return makeJsonResponse(result.status, { ...result.body, verificationOnly: true });
+    }
+    return makeJsonResponse(502, {
+      error: 'Gemini could not generate a valid question set. No fallback paper was created. Please retry or review the generation settings.',
+      code: 'GEMINI_GENERATION_FAILED',
+      retryable: true,
+      model: 'gemini-2.5-flash',
+    });
   }
 
   if (pathname === '/api/gemini/quiz/regenerate-question' && method === 'POST') {
@@ -1959,6 +1992,12 @@ export async function apkAwareFetch(input: RequestInfo | URL, init?: RequestInit
     // use the embedded handler only when online and not a failing offline write.
     if (isTrueFileOrAssetOrigin && contentType.includes('text/html')) {
       return handleEmbeddedApiRequest(urlStr, init);
+    }
+
+    // Return explicit JSON responses (including 400/502/503 error payloads) from /api/gemini/quiz
+    // directly to the caller instead of triggering client-side synthetic question generation.
+    if (pathname === '/api/gemini/quiz' && contentType.includes('application/json')) {
+      return response;
     }
 
     // If a Gemini or PDF endpoint returned 404/502/503/504 or an HTML gateway page,
