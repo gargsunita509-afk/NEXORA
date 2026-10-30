@@ -427,8 +427,9 @@ export const PrintableTimetable: React.FC<PrintableTimetableProps> = ({ version 
                   <div className="text-[9.5px] text-slate-600">Teacher: Anita Mam</div>
                 </td>
                 {/* PCB */}
-                <td className="py-1 px-2 border-r border-slate-800 text-center bg-slate-50">
-                  <div className="font-bold text-slate-700">Free</div>
+                <td className="py-1 px-2 border-r border-slate-800 text-center">
+                  <div className="font-bold text-slate-900">Biology</div>
+                  <div className="text-[9.5px] text-slate-600">Teacher: Shalini Mam</div>
                 </td>
                 {/* COMMERCE */}
                 <td className="py-1 px-2 border-r border-slate-800 text-center bg-slate-50">

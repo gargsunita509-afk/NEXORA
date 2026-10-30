@@ -1,14 +1,14 @@
 {
-  "version": "1.8.1",
-  "versionCode": 9,
+  "version": "1.8.2",
+  "versionCode": 10,
   "releaseDate": "2026-10-30",
   "minSupportedVersion": "1.0.0",
   "apkUrl": "/downloads/nexora-release.apk",
-  "versionedApkUrl": "/downloads/nexora-v1.8.1.apk",
-  "apkSize": "3479K",
-  "sha256": "f09bd9aea9cfb7f750cf96479b326ed34cd4463e67e9be274f964a9b883010c4",
+  "versionedApkUrl": "/downloads/nexora-v1.8.2.apk",
+  "apkSize": "3481K",
+  "sha256": "796702c58ef7d38c4a8bf32231b32d610c3520ffe54054bc54159766e1feaa52",
   "packageName": "com.theabhinavschool.nexora",
   "appName": "NEXORA",
-  "releaseNotes": "NEXORA v1.8.1 Production Release: Upgraded Gemini API model fallback chain, resilient multi-model support, MediaStore PDF download bridge, and 100% verified test coverage.",
+  "releaseNotes": "NEXORA v1.8.2 Production Release: PCB 4th lecture updated to Biology, Vanshika Commerce subject assignment corrected to Economics, and Class Showcase interactive student roster restored directly to Dashboard and dedicated workspace.",
   "platform": "android"
 }

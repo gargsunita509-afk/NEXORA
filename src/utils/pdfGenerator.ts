@@ -1245,7 +1245,7 @@ export function buildTimetablePdfDocument(version?: TimetableVersion): BuiltPdfD
       'Fourth Lecture',
       '10:40 AM – 11:20 AM',
       { subject: 'Mathematics', teacher: 'Anita Mam' },
-      { subject: 'Free' },
+      { subject: 'Biology', teacher: 'Shalini Mam' },
       { subject: 'Free' },
       { subject: 'Free' },
       11

@@ -17,7 +17,7 @@ import {
   ShieldCheck,
   Lock,
 } from 'lucide-react';
-import { NavModule, StaffUser } from '../../types';
+import { NavModule, StaffUser, Student, StreamType } from '../../types';
 import { storage } from '../../services/storage';
 import {
   getCurrentAndNextPeriod,
@@ -28,12 +28,40 @@ import {
 } from '../../utils/timetableHelper';
 import { audioFX } from '../../services/audio';
 import { QuickNotesFAB } from '../QuickNotesFAB';
+import { StudentProfileModal } from '../StudentProfileModal';
 
 interface DashboardModuleProps {
   onNavigate: (module: NavModule) => void;
   staffUser?: StaffUser | null;
   onOpenStaffPortal?: () => void;
 }
+
+const STREAM_COLORS: Record<StreamType, { border: string; bg: string; badge: string; text: string }> = {
+  PCM: {
+    border: 'border-cyan-500/30 hover:border-cyan-400',
+    bg: 'bg-cyan-950/20 hover:bg-cyan-950/40',
+    badge: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+    text: 'text-cyan-200',
+  },
+  PCB: {
+    border: 'border-emerald-500/30 hover:border-emerald-400',
+    bg: 'bg-emerald-950/20 hover:bg-emerald-950/40',
+    badge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+    text: 'text-emerald-200',
+  },
+  HUMANITIES: {
+    border: 'border-purple-500/30 hover:border-purple-400',
+    bg: 'bg-purple-950/20 hover:bg-purple-950/40',
+    badge: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
+    text: 'text-purple-200',
+  },
+  COMMERCE: {
+    border: 'border-amber-500/30 hover:border-amber-400',
+    bg: 'bg-amber-950/20 hover:bg-amber-950/40',
+    badge: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+    text: 'text-amber-200',
+  },
+};
 
 export const ALL_MODULE_CARDS: {
   id: NavModule;
@@ -117,6 +145,15 @@ export const ALL_MODULE_CARDS: {
     gradient: 'from-red-950/40 via-rose-950/40 to-slate-950/80',
     accent: 'border-red-500/30 group-hover:border-red-400',
   },
+  {
+    id: 'intro',
+    title: 'Class Showcase',
+    subtitle: 'Interactive student roster, academic profiles & stream allocations',
+    badge: '21 Students',
+    icon: Users,
+    gradient: 'from-purple-950/40 via-indigo-950/40 to-slate-950/80',
+    accent: 'border-purple-500/30 group-hover:border-purple-400',
+  },
 ];
 
 export const DashboardModule: React.FC<DashboardModuleProps> = ({
@@ -129,6 +166,23 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
     const now = new Date();
     return now.getHours() * 60 + now.getMinutes();
   });
+
+  const [students, setStudents] = useState<Student[]>(() => storage.getStudents());
+  const [selectedShowcaseStream, setSelectedShowcaseStream] = useState<StreamType | 'ALL'>('ALL');
+  const [selectedStudentForProfile, setSelectedStudentForProfile] = useState<Student | null>(null);
+
+  useEffect(() => {
+    storage
+      .syncStudentsWithBackend()
+      .then((synced) => {
+        if (Array.isArray(synced) && synced.length >= 21) {
+          setStudents(synced);
+        }
+      })
+      .catch(() => {
+        setStudents(storage.getStudents());
+      });
+  }, []);
 
   const isStaffAuthorized = Boolean(
     staffUser &&
@@ -433,6 +487,131 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
           })}
         </div>
       </div>
+
+      {/* CLASS SHOWCASE — INTERACTIVE STUDENT ROSTER SECTION */}
+      <div className="space-y-4 pt-4 border-t border-cyan-500/20">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-5 rounded-2xl jarvis-panel border border-cyan-500/30">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 font-mono-code text-xs font-bold uppercase">
+                CLASS SHOWCASE
+              </span>
+              <span className="text-xs font-mono-code text-slate-400">
+                CLASS 11TH ROSTER • THE ABHINAV SCHOOL
+              </span>
+            </div>
+            <h3 className="text-lg sm:text-xl font-bold font-hud text-white mt-1">
+              STUDENT SHOWCASE & ACADEMIC PROFILES
+            </h3>
+            <p className="text-xs text-slate-300 font-sans mt-0.5">
+              Click any student card to view their confirmed subject list, stream and academic details.
+            </p>
+          </div>
+
+          <div className="flex items-center flex-wrap gap-2">
+            {/* Stream Filter Pills */}
+            <div className="flex items-center gap-1 bg-slate-950/80 border border-cyan-500/20 p-1 rounded-xl overflow-x-auto">
+              {(['ALL', 'PCM', 'PCB', 'HUMANITIES', 'COMMERCE'] as (StreamType | 'ALL')[]).map((st) => (
+                <button
+                  key={st}
+                  onClick={() => {
+                    audioFX.playClick();
+                    setSelectedShowcaseStream(st);
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-mono-code font-bold transition whitespace-nowrap cursor-pointer ${
+                    selectedShowcaseStream === st
+                      ? 'bg-cyan-500 text-black shadow-[0_0_10px_rgba(0,240,255,0.4)]'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {st}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => {
+                audioFX.playClick();
+                onNavigate('intro');
+              }}
+              className="px-3.5 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/40 text-cyan-300 text-xs font-hud font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0"
+              title="Open full expanded Class Showcase workspace"
+            >
+              <span>EXPAND SHOWCASE</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* CLASS IN-CHARGE HIGHLIGHT CARD */}
+        <div className="p-4 sm:p-5 rounded-2xl jarvis-panel-glow border border-cyan-400/40 text-center relative overflow-hidden">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-24 rounded-full bg-cyan-400/10 blur-2xl pointer-events-none" />
+          <div className="relative z-10 flex flex-col items-center justify-center">
+            <span className="text-[10px] sm:text-xs font-mono-code text-cyan-400 uppercase tracking-[0.2em] font-semibold mb-0.5">
+              CLASS IN-CHARGE
+            </span>
+            <h4
+              className="text-2xl sm:text-3xl font-hud font-black text-white tracking-wider"
+              style={{
+                textShadow: '0 0 20px rgba(0, 240, 255, 0.4), 0 0 40px rgba(0, 119, 254, 0.25)',
+              }}
+            >
+              Diksha Mam
+            </h4>
+            <p className="text-xs font-sans text-slate-300 mt-1">
+              Faculty Mentor & Department Coordinator • Class 11th, The Abhinav School
+            </p>
+          </div>
+        </div>
+
+        {/* ALL 21 STUDENTS INTERACTIVE GRID */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+          {students
+            .filter((s) => selectedShowcaseStream === 'ALL' || s.stream === selectedShowcaseStream)
+            .map((student) => {
+              const streamStyle = STREAM_COLORS[student.stream] || STREAM_COLORS.PCM;
+              return (
+                <div
+                  key={student.id}
+                  onClick={() => {
+                    audioFX.playClick();
+                    setSelectedStudentForProfile(student);
+                  }}
+                  className={`p-4 rounded-xl border backdrop-blur-md transition-all duration-200 flex items-center justify-between gap-3 group jarvis-panel-interactive cursor-pointer select-none hover:shadow-lg ${streamStyle.border} ${streamStyle.bg}`}
+                  title={`Click to view ${student.name}'s academic profile & confirmed subjects`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="font-hud font-bold text-base text-white group-hover:text-cyan-200 transition truncate flex items-center gap-1.5">
+                      <span>{student.name}</span>
+                      <span className="text-[10px] text-cyan-400 opacity-0 group-hover:opacity-100 transition">↗</span>
+                    </div>
+                    <div className="text-xs font-mono-code text-slate-400 mt-0.5">
+                      Stream: <span className="font-semibold text-slate-200">{student.stream}</span>
+                    </div>
+                  </div>
+
+                  <div
+                    className={`px-2.5 py-1 rounded-lg text-xs font-mono-code font-bold uppercase shrink-0 border ${streamStyle.badge}`}
+                  >
+                    {student.stream}
+                  </div>
+                </div>
+              );
+            })}
+        </div>
+
+        {/* Footer info banner */}
+        <div className="p-3 rounded-xl bg-slate-950/40 border border-cyan-500/10 text-center text-xs font-mono-code text-slate-400">
+          Showing {students.filter((s) => selectedShowcaseStream === 'ALL' || s.stream === selectedShowcaseStream).length} of {students.length} verified Class 11th students at The Abhinav School. Click any student to view their confirmed subject list.
+        </div>
+      </div>
+
+      {/* Student Profile Modal for Dashboard showcase */}
+      <StudentProfileModal
+        student={selectedStudentForProfile}
+        isOpen={Boolean(selectedStudentForProfile)}
+        onClose={() => setSelectedStudentForProfile(null)}
+      />
 
       {/* Staff-only Quick Notes Floating Action Button (strictly mounted only for authorized staff) */}
       {isStaffAuthorized && <QuickNotesFAB onOpenFullModule={() => onNavigate('quick_notes')} />}

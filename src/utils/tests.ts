@@ -157,7 +157,10 @@ export async function runAllVerificationTests(): Promise<TestResult[]> {
     if (monL4.allocations.PCM.subject !== 'Mathematics' || monL4.allocations.PCM.teacher !== 'Anita Mam') {
       throw new Error('Expected Current Fourth Lecture PCM to be Mathematics (Anita Mam)');
     }
-    for (const freeSt of ['PCB', 'COMMERCE', 'HUMANITIES'] as const) {
+    if (monL4.allocations.PCB.subject !== 'Biology' || monL4.allocations.PCB.teacher !== 'Shalini Mam') {
+      throw new Error('Expected Current Fourth Lecture PCB to be Biology (Shalini Mam)');
+    }
+    for (const freeSt of ['COMMERCE', 'HUMANITIES'] as const) {
       if (monL4.allocations[freeSt].subject !== 'Free' || !monL4.allocations[freeSt].isFree || monL4.allocations[freeSt].teacher) {
         throw new Error(`Expected Current Fourth Lecture ${freeSt} to be Free with no teacher`);
       }
@@ -3396,9 +3399,8 @@ export async function runAllVerificationTests(): Promise<TestResult[]> {
         if (
           p4.allocations.PCM.subject !== 'Mathematics' ||
           p4.allocations.PCM.teacher !== 'Anita Mam' ||
-          p4.allocations.PCB.subject !== 'Free' ||
-          !p4.allocations.PCB.isFree ||
-          Boolean(p4.allocations.PCB.teacher) ||
+          p4.allocations.PCB.subject !== 'Biology' ||
+          p4.allocations.PCB.teacher !== 'Shalini Mam' ||
           p4.allocations.COMMERCE.subject !== 'Free' ||
           !p4.allocations.COMMERCE.isFree ||
           Boolean(p4.allocations.COMMERCE.teacher) ||
@@ -3508,6 +3510,103 @@ export async function runAllVerificationTests(): Promise<TestResult[]> {
       const builtPdf = buildTimetablePdfDocument('current');
       if (builtPdf.byteLength < 1000 || !builtPdf.base64.startsWith('JVBERi0')) {
         throw new Error('Built PDF document did not produce valid %PDF- base64 data');
+      }
+    }
+  );
+
+  // 56. PCB 4TH LECTURE BIOLOGY, VANSHIKA COMMERCE ECONOMICS & CLASS SHOWCASE RESTORATION
+  await test(
+    56,
+    'PCB 4th Lecture Biology, Vanshika Commerce Economics & Class Showcase Integration',
+    'Timetable & Students',
+    async () => {
+      // 1. Verify PCB 4th lecture displays Biology across all Monday–Saturday schedules
+      const currentTimetable = storage.getTimetable('current');
+      for (const day of DAYS_OF_WEEK) {
+        const schedule = currentTimetable[day];
+        const fourthPeriod = schedule.find((p) => p.periodNumber === 4);
+        if (!fourthPeriod) {
+          throw new Error(`Fourth Lecture not found in ${day} current schedule`);
+        }
+        if (fourthPeriod.startTime !== '10:40' || fourthPeriod.endTime !== '11:20') {
+          throw new Error(`Fourth Lecture timing mismatch on ${day}: ${fourthPeriod.startTime} - ${fourthPeriod.endTime}`);
+        }
+        // Verify PCB is Biology with Shalini Mam
+        if (fourthPeriod.allocations.PCB.subject !== 'Biology' || fourthPeriod.allocations.PCB.teacher !== 'Shalini Mam') {
+          throw new Error(`Expected PCB 4th lecture on ${day} to be Biology (Shalini Mam), got ${fourthPeriod.allocations.PCB.subject}`);
+        }
+        // Verify PCM remains Mathematics with Anita Mam
+        if (fourthPeriod.allocations.PCM.subject !== 'Mathematics' || fourthPeriod.allocations.PCM.teacher !== 'Anita Mam') {
+          throw new Error(`Expected PCM 4th lecture on ${day} to remain Mathematics (Anita Mam)`);
+        }
+        // Verify Commerce and Humanities remain Free
+        if (fourthPeriod.allocations.COMMERCE.subject !== 'Free' || fourthPeriod.allocations.HUMANITIES.subject !== 'Free') {
+          throw new Error(`Expected Commerce and Humanities 4th lecture on ${day} to remain Free`);
+        }
+      }
+
+      // 2. Verify Vanshika in Commerce stream has Economics instead of Physical Education
+      const { getStudentProfileData } = await import('../data/studentSubjectMapping');
+      const vanshikaProfile = getStudentProfileData({
+        id: 'std-13',
+        name: 'Vanshika',
+        stream: 'COMMERCE',
+        gender: 'girl',
+      });
+      if (vanshikaProfile.stream !== 'COMMERCE') {
+        throw new Error(`Expected Vanshika stream to be COMMERCE, got ${vanshikaProfile.stream}`);
+      }
+      const vanshikaSubjectNames = vanshikaProfile.subjects.map((s) => s.name);
+      if (!vanshikaSubjectNames.includes('Economics')) {
+        throw new Error(`Expected Vanshika to have Economics, got: ${vanshikaSubjectNames.join(', ')}`);
+      }
+      if (vanshikaSubjectNames.includes('Physical Education')) {
+        throw new Error('Expected Physical Education to be removed from Vanshika subjects');
+      }
+      // Verify all her other confirmed subjects are preserved
+      const expectedVanshikaSubjects = [
+        'Business Studies',
+        'Accountancy',
+        'English',
+        'Mathematics',
+        'Economics',
+        'Fine Arts',
+      ];
+      for (const subj of expectedVanshikaSubjects) {
+        if (!vanshikaSubjectNames.includes(subj)) {
+          throw new Error(`Missing expected subject ${subj} for Vanshika`);
+        }
+      }
+
+      // 3. Verify other Commerce students retain their original subjects (including Physical Education)
+      const otherCommerceStudents = ['Riya', 'Harsh', 'Sandhya', 'Tamanna'];
+      for (const name of otherCommerceStudents) {
+        const prof = getStudentProfileData({
+          name,
+          stream: 'COMMERCE',
+          gender: name === 'Harsh' ? 'boy' : 'girl',
+        });
+        const subjs = prof.subjects.map((s) => s.name);
+        if (!subjs.includes('Physical Education')) {
+          throw new Error(`Expected Commerce student ${name} to retain Physical Education`);
+        }
+        if (!subjs.includes('Economics')) {
+          throw new Error(`Expected Commerce student ${name} to retain Economics`);
+        }
+        if (subjs.includes('Mathematics')) {
+          throw new Error(`Commerce student ${name} should not have Mathematics`);
+        }
+      }
+
+      // 4. Verify Class Showcase restoration: exactly 21 students and card present in ALL_MODULE_CARDS
+      const students = storage.getStudents();
+      if (students.length !== 21) {
+        throw new Error(`Expected 21 student records for Class Showcase, got ${students.length}`);
+      }
+      const { ALL_MODULE_CARDS } = await import('../components/modules/DashboardModule');
+      const introCard = ALL_MODULE_CARDS.find((c) => c.id === 'intro');
+      if (!introCard || introCard.title !== 'Class Showcase') {
+        throw new Error('Class Showcase card is missing from Dashboard ALL_MODULE_CARDS');
       }
     }
   );

@@ -186,7 +186,7 @@ export function createCurrentDaySchedule(day: DayOfWeek): Period[] {
 
     // 4th LECTURE — 10:40 AM to 11:20 AM
     // PCM: Mathematics — Anita Mam
-    // PCB: Free
+    // PCB: Biology — Shalini Mam
     // COMMERCE: Free
     // HUMANITIES: Free
     {
@@ -197,7 +197,7 @@ export function createCurrentDaySchedule(day: DayOfWeek): Period[] {
       endTime: '11:20',
       allocations: {
         PCM: { subject: 'Mathematics', teacher: 'Anita Mam' },
-        PCB: { subject: 'Free', isFree: true },
+        PCB: { subject: 'Biology', teacher: 'Shalini Mam' },
         COMMERCE: { subject: 'Free', isFree: true },
         HUMANITIES: { subject: 'Free', isFree: true },
       },

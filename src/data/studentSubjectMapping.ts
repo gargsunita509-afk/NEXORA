@@ -82,8 +82,8 @@ export function getStudentProfileData(student: { id?: string; name: string; stre
   }
 
   // 3. VANSHIKA — COMMERCE EXCEPTION
-  // Business Studies, Accountancy, English, Mathematics, Physical Education, Fine Arts
-  // Mathematics instead of Economics!
+  // Business Studies, Accountancy, English, Mathematics, Economics, Fine Arts
+  // Economics replaces Physical Education for Vanshika only!
   if (norm === 'vanshika') {
     return {
       id: student.id || 'std-13',
@@ -95,7 +95,7 @@ export function getStudentProfileData(student: { id?: string; name: string; stre
         { name: 'Accountancy', teacher: CONFIRMED_TEACHER_MAPPING['Accountancy'], isConfirmed: true },
         { name: 'English', teacher: CONFIRMED_TEACHER_MAPPING['English'], isConfirmed: true },
         { name: 'Mathematics', teacher: CONFIRMED_TEACHER_MAPPING['Mathematics'], isConfirmed: true },
-        { name: 'Physical Education', isConfirmed: true },
+        { name: 'Economics', teacher: CONFIRMED_TEACHER_MAPPING['Economics'], isConfirmed: true },
         { name: 'Fine Arts', isConfirmed: true },
       ],
     };

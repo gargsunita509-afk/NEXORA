@@ -1178,26 +1178,28 @@ class StorageService {
       const raw = this.safeGet(KEYS.STUDENTS);
       if (raw) {
         const parsed: Student[] = JSON.parse(raw);
-        let updated = false;
-        const normalized = parsed.map((s) => {
-          if (s.name === 'Kesav' || s.id === 'std-1') {
-            if (s.name !== 'Keshav') {
-              updated = true;
-              return { ...s, name: 'Keshav' };
+        if (Array.isArray(parsed) && parsed.length >= 21) {
+          let updated = false;
+          const normalized = parsed.map((s) => {
+            if (s.name === 'Kesav' || s.id === 'std-1') {
+              if (s.name !== 'Keshav') {
+                updated = true;
+                return { ...s, name: 'Keshav' };
+              }
             }
-          }
-          if (s.name === 'Dixit' || s.id === 'std-6') {
-            if (s.name !== 'Dikshit') {
-              updated = true;
-              return { ...s, name: 'Dikshit' };
+            if (s.name === 'Dixit' || s.id === 'std-6') {
+              if (s.name !== 'Dikshit') {
+                updated = true;
+                return { ...s, name: 'Dikshit' };
+              }
             }
+            return s;
+          });
+          if (updated) {
+            this.saveStudents(normalized);
           }
-          return s;
-        });
-        if (updated) {
-          this.saveStudents(normalized);
+          return normalized;
         }
-        return normalized;
       }
     } catch (e) {
       console.error('Error reading students:', e);
